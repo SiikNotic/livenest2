@@ -13,7 +13,7 @@ type GenderFilter = "all" | "male" | "female";
 
 const PROVIDERS: { id: VoiceProvider; labelKey: import("../lib/i18n").TranslationKey; descKey: import("../lib/i18n").TranslationKey; icon: typeof Globe; memberOnly?: boolean }[] = [
   { id: "browser", labelKey: "voices_browser", descKey: "voices_browser_desc", icon: Globe },
-  { id: "edge", labelKey: "voices_edge", descKey: "voices_edge_desc", icon: Sparkles, memberOnly: true },
+  { id: "google", labelKey: "voices_google", descKey: "voices_google_desc", icon: Sparkles, memberOnly: true },
   { id: "elevenlabs", labelKey: "voices_elevenlabs", descKey: "voices_elevenlabs_desc", icon: Crown, memberOnly: true },
 ];
 
@@ -67,12 +67,12 @@ export function VoicesView() {
 
   // A saved provider that requires membership but the user no longer has one
   // (e.g. license just expired) — behave as "browser" until it's re-saved.
-  const isProviderLocked = (p: VoiceProvider) => (p === "edge" || p === "elevenlabs") && !hasActiveLicense;
+  const isProviderLocked = (p: VoiceProvider) => (p === "google" || p === "elevenlabs") && !hasActiveLicense;
   const effectiveProvider: VoiceProvider = isProviderLocked(provider) ? "browser" : provider;
 
   const allVoices =
     effectiveProvider === "browser" ? browserVoices
-    : effectiveProvider === "edge" ? voiceManager.getEdgeVoices()
+    : effectiveProvider === "google" ? voiceManager.getGoogleVoices()
     : voiceManager.getElevenLabsVoices();
 
   const byLang = allVoices.filter((v) => matchLang(v, filterLang));

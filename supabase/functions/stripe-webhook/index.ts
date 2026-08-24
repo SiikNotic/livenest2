@@ -23,10 +23,22 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // Estos dos los inyecta la plataforma automáticamente en toda Edge
+    // Function — si por lo que sea faltan, createClient() explota con un
+    // error críptico ("supabaseUrl is required") que antes caía directo
+    // al catch general de abajo como un 500 sin pista de la causa real.
+    // Se valida explícito para que, si es esto, el mensaje lo diga claro.
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("stripe-webhook: falta SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en el entorno de la función.");
+      return new Response(
+        JSON.stringify({ error: "Configuración del servidor incompleta (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY)." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
@@ -39,13 +51,26 @@ Deno.serve(async (req: Request) => {
     }
 
     // Verify webhook signature using Stripe SDK
-    const Stripe = (await import("npm:stripe@17.3.1")).default;
+    let Stripe: typeof import("npm:stripe@17.3.1").default;
+    try {
+      Stripe = (await import("npm:stripe@17.3.1")).default;
+    } catch (err) {
+      console.error("stripe-webhook: no se pudo cargar el paquete 'stripe':", err);
+      return new Response(
+        JSON.stringify({ error: `No se pudo cargar el SDK de Stripe: ${err instanceof Error ? err.message : String(err)}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const stripe = new Stripe(stripeSecretKey);
 
     let event: Stripe.Event;
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (err) {
+      // Firma inválida (secreto equivocado, cuerpo modificado, etc.) — no es
+      // un error del servidor, es que el evento no se puede confiar, así que
+      // se responde 400 (no reintentable como si fuera un fallo nuestro) en
+      // vez de 500.
       return new Response(
         JSON.stringify({ error: `Firma inválida: ${err.message}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -63,14 +88,15 @@ Deno.serve(async (req: Request) => {
 
         if (userId) {
           // Cancel any existing active license
-          await supabase
+          const { error: cancelError } = await supabase
             .from("user_licenses")
             .update({ status: "cancelled", updated_at: new Date().toISOString() })
             .eq("user_id", userId)
             .eq("status", "active");
+          if (cancelError) console.error("stripe-webhook: error cancelando licencia previa:", cancelError);
 
           // Create new license
-          await supabase.from("user_licenses").insert({
+          const { error: insertError } = await supabase.from("user_licenses").insert({
             user_id: userId,
             license_key_id: null,
             source: "stripe",
@@ -80,6 +106,14 @@ Deno.serve(async (req: Request) => {
             status: "active",
             auto_renew: true,
           });
+          // Esto NO lanzaba excepción (supabase-js no tira error de la
+          // base como throw), así que si fallaba (constraint, RLS, lo que
+          // sea) la función igual respondía 200 "received" a Stripe — el
+          // pago quedaba registrado pero el usuario nunca recibía la
+          // membresía, en silencio. Ahora al menos queda en los logs.
+          if (insertError) console.error("stripe-webhook: error creando licencia:", insertError);
+        } else {
+          console.error("stripe-webhook: checkout.session.completed sin metadata.user_id — no se puede otorgar membresía.");
         }
         break;
       }
@@ -99,17 +133,19 @@ Deno.serve(async (req: Request) => {
 
         if (existing) {
           if (event.type === "customer.subscription.deleted") {
-            await supabase
+            const { error } = await supabase
               .from("user_licenses")
               .update({ status: "cancelled", auto_renew: false, updated_at: new Date().toISOString() })
               .eq("id", existing.id);
+            if (error) console.error("stripe-webhook: error cancelando suscripción:", error);
           } else {
             // Update auto_renew based on subscription status
             const autoRenew = subscription.status === "active";
-            await supabase
+            const { error } = await supabase
               .from("user_licenses")
               .update({ auto_renew, updated_at: new Date().toISOString() })
               .eq("id", existing.id);
+            if (error) console.error("stripe-webhook: error actualizando auto_renew:", error);
           }
         }
         break;
@@ -133,10 +169,11 @@ Deno.serve(async (req: Request) => {
           const base = Math.max(currentExpiry, Date.now());
           // Default 30-day extension
           const newExpiry = new Date(base + 30 * 86400000).toISOString();
-          await supabase
+          const { error } = await supabase
             .from("user_licenses")
             .update({ expires_at: newExpiry, status: "active", updated_at: new Date().toISOString() })
             .eq("id", existing.id);
+          if (error) console.error("stripe-webhook: error extendiendo licencia:", error);
         }
         break;
       }
@@ -147,8 +184,13 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    // Log server-side (visible en Supabase → Edge Functions → stripe-webhook
+    // → Logs) además de en la respuesta que ve Stripe — antes solo se veía
+    // en el panel de Stripe (pestaña "Response" del evento fallido), lo
+    // cual es fácil de pasar por alto si no se sabe buscar ahí.
+    console.error("stripe-webhook: error no controlado:", err);
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
