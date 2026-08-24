@@ -74,13 +74,27 @@ export default function App() {
   // without needing to re-register the listener on every song change.
   const currentSongRef = useRef(currentSong);
   currentSongRef.current = currentSong;
+  const songQueueRef = useRef(songQueue);
+  songQueueRef.current = songQueue;
 
   useEffect(() => {
     ytPlayer.setOnEnded(() => {
       const song = currentSongRef.current;
-      if (song) {
-        updateSongStatus(song.id, "played");
+      if (!song) return;
+      // Si no queda nada más en la cola, parar el reproductor YA MISMO —
+      // sincrónico, antes de esperar la respuesta de la base de datos.
+      // updateSongStatus tarda un ratito en volver (viaje de red), y en
+      // ese hueco el iframe de YouTube puede arrancar solo su pantalla de
+      // "próximo vídeo" — que en un canal con pocos vídeos subidos suele
+      // proponer el MISMO vídeo que acaba de terminar. Así se veía como
+      // que "la canción se repite": no era nuestro código recargándola,
+      // era YouTube autorreproduciendo su propia sugerencia mientras
+      // nuestro stop() todavía viajaba por la red. Deteniéndolo aquí, sin
+      // await de por medio, no le queda ventana para hacerlo.
+      if (songQueueRef.current.length === 0) {
+        ytPlayer.stop();
       }
+      updateSongStatus(song.id, "played");
     });
     return () => ytPlayer.setOnEnded(null);
   }, [updateSongStatus]);
