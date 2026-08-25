@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { WebSocket as WS } from "npm:ws@8.18.2";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const corsHeaders = {
@@ -8,173 +7,79 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-function escapeXml(text: string): string {
-  return text.replace(/[<>&'"]/g, (c) => ({
-    "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;",
-  }[c] || c));
+// Google Translate TTS — free, no API key, plain HTTPS (no WebSocket).
+//
+// Reemplaza a Edge TTS (Microsoft), que dejó de funcionar: usaba un
+// protocolo no oficial (WebSocket + un "TrustedClientToken" fijo y una
+// firma Sec-MS-GEC calculada a mano imitando el navegador Edge real) que
+// Microsoft puede invalidar sin aviso — y lo hizo. Este endpoint de Google
+// también es no oficial, pero es un simple GET sin token ni firma que
+// vencer, así que es mucho menos frágil.
+//
+// Limitación real: una sola voz por idioma (sin elegir género/nombre como
+// con Edge), sin control de tono, y Google trunca el texto a ~200
+// caracteres por petición — por eso se divide en trozos y se pegan los
+// audios resultantes.
+const GOOGLE_TTS_MAX_CHARS = 200;
+
+function splitForGoogleTTS(text: string): string[] {
+  const chunks: string[] = [];
+  let rest = text.trim();
+  while (rest.length > 0) {
+    if (rest.length <= GOOGLE_TTS_MAX_CHARS) {
+      chunks.push(rest);
+      break;
+    }
+    // Cortar en el último punto/coma/espacio dentro del límite, para no
+    // partir una palabra a la mitad.
+    let cut = rest.slice(0, GOOGLE_TTS_MAX_CHARS);
+    const lastBreak = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf(", "), cut.lastIndexOf(" "));
+    if (lastBreak > 20) cut = rest.slice(0, lastBreak + 1);
+    chunks.push(cut.trim());
+    rest = rest.slice(cut.length).trim();
+  }
+  return chunks;
 }
 
-// Microsoft Edge TTS — free, no API key required.
-const EDGE_TTS_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
-const CHROMIUM_FULL_VERSION = "143.0.3650.75";
-const SEC_MS_GEC_VERSION = `1-${CHROMIUM_FULL_VERSION}`;
-const WIN_EPOCH = 11644473600;
+async function googleTranslateTTS(text: string, lang: string): Promise<ArrayBuffer> {
+  const chunks = splitForGoogleTTS(text).filter(Boolean);
+  if (chunks.length === 0) throw new Error("Google TTS: texto vacío tras dividirlo.");
 
-async function generateSecMsGec(): Promise<string> {
-  const nowSec = Math.floor(Date.now() / 1000);
-  let ticks = nowSec + WIN_EPOCH;
-  ticks -= ticks % 300;
-  ticks = ticks * 1e7;
-  const strToHash = `${Math.round(ticks)}${EDGE_TTS_TOKEN}`;
-  const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(strToHash));
-  return Array.from(new Uint8Array(hashBuf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase();
-}
+  const buffers: Uint8Array[] = [];
+  for (const chunk of chunks) {
+    const url = new URL("https://translate.google.com/translate_tts");
+    url.searchParams.set("ie", "UTF-8");
+    url.searchParams.set("client", "tw-ob");
+    url.searchParams.set("tl", lang || "es");
+    url.searchParams.set("q", chunk);
 
-function generateMuid(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase();
-}
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    let resp: Response;
+    try {
+      resp = await fetch(url.toString(), {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          "Referer": "https://translate.google.com/",
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (!resp.ok) {
+      throw new Error(`Google TTS respondió HTTP ${resp.status}`);
+    }
+    buffers.push(new Uint8Array(await resp.arrayBuffer()));
+  }
 
-function mkssml(voice: string, text: string, rate: string, pitch: string): string {
-  return (
-    "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
-    + `<voice name='${voice}'>`
-    + `<prosody pitch='${pitch}' rate='${rate}' volume='+0%'>`
-    + escapeXml(text)
-    + "</prosody></voice></speak>"
-  );
-}
-
-function ssmlHeadersPlusData(requestId: string, timestamp: string, ssml: string): string {
-  return (
-    `X-RequestId:${requestId}\r\n`
-    + "Content-Type:application/ssml+xml\r\n"
-    + `X-Timestamp:${timestamp}Z\r\n`
-    + "Path:ssml\r\n\r\n"
-    + ssml
-  );
-}
-
-async function edgeTTS(text: string, voiceId: string, rate: number, pitch: number): Promise<ArrayBuffer> {
-  const rateStr = `${rate > 1 ? "+" : ""}${Math.round((rate - 1) * 100)}%`;
-  const pitchStr = `${pitch > 1 ? "+" : ""}${Math.round((pitch - 1) * 50)}Hz`;
-  const ssml = mkssml(voiceId, text, rateStr, pitchStr);
-
-  const secMsGec = await generateSecMsGec();
-  const muid = generateMuid();
-  const connectionId = crypto.randomUUID().replace(/-/g, "");
-  const wsUrl = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${EDGE_TTS_TOKEN}&Sec-MS-GEC=${secMsGec}&Sec-MS-GEC-Version=${SEC_MS_GEC_VERSION}&ConnectionId=${connectionId}`;
-
-  return new Promise<ArrayBuffer>((resolve, reject) => {
-    const audioChunks: Uint8Array[] = [];
-    let resolved = false;
-
-    const ws = new WS(wsUrl, {
-      headers: {
-        "Pragma": "no-cache",
-        "Cache-Control": "no-cache",
-        "Origin": "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Cookie": `muid=${muid};`,
-      },
-    });
-
-    const timeout = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        try { ws.close(); } catch { /* ignore */ }
-        reject(new Error("Edge TTS: timeout (20s)"));
-      }
-    }, 20000);
-
-    ws.on("open", () => {
-      const ts = new Date().toISOString();
-      const configMsg =
-        `X-Timestamp:${ts}\r\n`
-        + "Content-Type:application/json; charset=utf-8\r\n"
-        + "Path:speech.config\r\n\r\n"
-        + '{"context":{"synthesis":{"audio":{"metadataOptions":{"sentenceBoundaryEnabled":"true","wordBoundaryEnabled":"false"},'
-        + '"outputFormat":"audio-24khz-48kbitrate-mono-mp3"'
-        + "}}}}\r\n";
-      ws.send(configMsg);
-
-      const ssmlMsg = ssmlHeadersPlusData(crypto.randomUUID(), ts, ssml);
-      ws.send(ssmlMsg);
-    });
-
-    ws.on("message", (data: unknown, isBinary: boolean) => {
-      if (resolved) return;
-
-      if (!isBinary) {
-        let str: string;
-        if (typeof data === "string") {
-          str = data;
-        } else if (data instanceof Uint8Array) {
-          str = new TextDecoder().decode(data);
-        } else {
-          str = String(data);
-        }
-        if (str.includes("Path:turn.end")) {
-          resolved = true;
-          clearTimeout(timeout);
-          ws.close();
-          const totalLen = audioChunks.reduce((s, c) => s + c.length, 0);
-          const merged = new Uint8Array(totalLen);
-          let off = 0;
-          for (const c of audioChunks) { merged.set(c, off); off += c.length; }
-          resolve(merged.buffer);
-        }
-        return;
-      }
-
-      const buf = data as Uint8Array;
-      if (buf.length < 2) return;
-
-      const headerLen = (buf[0] << 8) | buf[1];
-      if (headerLen > buf.length) return;
-
-      const headerBytes = buf.subarray(2, headerLen);
-      const headerStr = new TextDecoder().decode(headerBytes);
-      if (!headerStr.includes("Path:audio")) return;
-
-      const audioData = buf.subarray(headerLen);
-      if (audioData.length > 0) {
-        audioChunks.push(new Uint8Array(audioData));
-      }
-    });
-
-    ws.on("error", (err: Error) => {
-      if (!resolved) {
-        resolved = true;
-        clearTimeout(timeout);
-        reject(new Error(`Edge TTS: ${err.message}`));
-      }
-    });
-
-    ws.on("close", () => {
-      if (!resolved) {
-        resolved = true;
-        clearTimeout(timeout);
-        if (audioChunks.length > 0) {
-          const totalLen = audioChunks.reduce((s, c) => s + c.length, 0);
-          const merged = new Uint8Array(totalLen);
-          let off = 0;
-          for (const c of audioChunks) { merged.set(c, off); off += c.length; }
-          resolve(merged.buffer);
-        } else {
-          reject(new Error("Edge TTS: conexión cerrada sin audio"));
-        }
-      }
-    });
-  });
+  // Los trozos son streams MP3 crudos (sin cabecera ID3), así que pegarlos
+  // uno tras otro basta para que se reproduzcan seguidos como un solo audio.
+  const totalLen = buffers.reduce((s, b) => s + b.length, 0);
+  const merged = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const b of buffers) { merged.set(b, offset); offset += b.length; }
+  return merged.buffer;
 }
 
 // ElevenLabs — list all voices available on the account (premade + cloned +
@@ -310,6 +215,104 @@ async function elevenlabsTTS(
   return await resp.arrayBuffer();
 }
 
+// Inworld TTS — voces premium en inglés y español (y más idiomas).
+//
+// La clave se guarda en la tabla `api_secrets` (igual que la de Euler
+// Stream) en vez de como secreto de Edge Function como ElevenLabs, porque
+// desde esta sesión no había forma de crear un secreto de función — el
+// resultado es igual de seguro (solo el service role la lee, nunca el
+// cliente), solo cambia dónde vive.
+//
+// La clave de Inworld ya viene en el formato que pide su cabecera
+// Authorization: Basic — es base64(workspaceKey:workspaceSecret), y el
+// panel de Inworld te la da ya codificada así, lista para usar tal cual.
+//
+// NOTA: no pude verificar la documentación de Inworld en vivo desde este
+// entorno (su web está bloqueada), así que el endpoint/formato de abajo
+// viene de lo que sé de su API — si algo devuelve 404 o un error de forma
+// inesperada, ese mensaje trae la pista exacta de qué ajustar.
+async function inworldApiKey(): Promise<string> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+
+  const { data, error } = await supabase
+    .from("api_secrets")
+    .select("secret_value")
+    .eq("provider", "inworld")
+    .eq("key_name", "api_key")
+    .maybeSingle();
+
+  if (error || !data?.secret_value) {
+    throw new Error("No se encontró la API key de Inworld.");
+  }
+  return data.secret_value as string;
+}
+
+// Lista las voces disponibles en la cuenta de Inworld, con el idioma que
+// cada una soporta — así el catálogo se arma con datos reales en vez de
+// una lista de nombres adivinada a mano.
+async function inworldListVoices(): Promise<unknown> {
+  const apiKey = await inworldApiKey();
+
+  const resp = await fetch("https://api.inworld.ai/tts/v1/voices", {
+    method: "GET",
+    headers: { "Authorization": `Basic ${apiKey}` },
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Inworld API error ${resp.status}: ${errText}`);
+  }
+
+  const data = await resp.json();
+  const rawVoices: any[] = Array.isArray(data?.voices) ? data.voices
+    : Array.isArray(data) ? data
+    : [];
+
+  return rawVoices.map((v) => ({
+    id: v.voiceId ?? v.voice_id ?? v.id ?? v.name,
+    name: v.displayName ?? v.display_name ?? v.name ?? v.voiceId ?? v.voice_id,
+    gender: v.gender ?? null,
+    languages: v.languages ?? v.languageCodes ?? v.language_codes ?? (v.language ? [v.language] : []),
+    description: v.description ?? null,
+  }));
+}
+
+// Inworld TTS — requiere la clave guardada en api_secrets (provider='inworld').
+async function inworldTTS(text: string, voiceId: string, modelId: string): Promise<ArrayBuffer> {
+  const apiKey = await inworldApiKey();
+
+  const resp = await fetch("https://api.inworld.ai/tts/v1/voice", {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text,
+      voiceId,
+      modelId: modelId || "inworld-tts-1",
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Inworld API error ${resp.status}: ${errText}`);
+  }
+
+  const data = await resp.json();
+  const base64Audio: string | undefined = data?.audioContent ?? data?.audio_content ?? data?.audio;
+  if (!base64Audio) {
+    throw new Error("Inworld: la respuesta no trajo audio.");
+  }
+
+  const binary = atob(base64Audio);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -328,12 +331,12 @@ Deno.serve(async (req: Request) => {
       similarityBoost,
     } = await req.json();
 
-    // Edge TTS and ElevenLabs cost real money/quota per request and are
+    // Google TTS and ElevenLabs cost compute/quota per request and are
     // member-only features. Verify the caller (via their own session JWT,
     // sent in Authorization) actually has an active license before doing
     // any work — this can't be bypassed by calling the function directly,
     // since it no longer trusts a bare "provider" field from the client.
-    if (provider === "edge" || provider === "elevenlabs") {
+    if (provider === "google" || provider === "elevenlabs" || provider === "inworld") {
       const authHeader = req.headers.get("Authorization") ?? "";
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -403,6 +406,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // List all Inworld voices available on the account (no text needed).
+    if (action === "list-voices" && provider === "inworld") {
+      const voices = await inworldListVoices();
+      return new Response(JSON.stringify({ voices }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!text || !voiceId) {
       return new Response(JSON.stringify({ error: "Faltan parámetros: text, voiceId" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -411,8 +422,10 @@ Deno.serve(async (req: Request) => {
 
     let audio: ArrayBuffer;
 
-    if (provider === "edge") {
-      audio = await edgeTTS(text, voiceId, rate ?? 1, pitch ?? 1);
+    if (provider === "google") {
+      // Aquí voiceId es un código de idioma ("es", "en", ...), no el nombre
+      // de una voz — Google Translate TTS no deja elegir voz, solo idioma.
+      audio = await googleTranslateTTS(text, voiceId);
     } else if (provider === "elevenlabs") {
       audio = await elevenlabsTTS(
         text,
@@ -423,16 +436,23 @@ Deno.serve(async (req: Request) => {
         stability ?? 0.5,
         similarityBoost ?? 0.75,
       );
+    } else if (provider === "inworld") {
+      audio = await inworldTTS(text, voiceId, modelId ?? "inworld-tts-1");
     } else {
-      return new Response(JSON.stringify({ error: "Proveedor no soportado. Usa 'edge' o 'elevenlabs'" }), {
+      return new Response(JSON.stringify({ error: "Proveedor no soportado. Usa 'google', 'elevenlabs' o 'inworld'" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Inworld devuelve WAV (audioContent en base64), no MP3 como los demás
+    // — si se sirviera igual con audio/mpeg, el navegador podría negarse a
+    // reproducirlo por el tipo MIME equivocado.
+    const audioContentType = provider === "inworld" ? "audio/wav" : "audio/mpeg";
+
     return new Response(audio, {
       headers: {
         ...corsHeaders,
-        "Content-Type": "audio/mpeg",
+        "Content-Type": audioContentType,
         "Cache-Control": "no-store",
       },
     });

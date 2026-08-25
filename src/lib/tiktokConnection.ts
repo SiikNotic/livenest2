@@ -226,6 +226,7 @@ export class TikTokConnection {
         this.handleGiftMessage(giftInfo);
         continue;
       }
+      logUnknownLinkMicEvent(item);
       const event = normalizeSchemaV2(item);
       if (event && !this.isDuplicate(event)) this.handlers.onEvent?.(event);
     }
@@ -412,6 +413,49 @@ export class TikTokConnection {
       this.ws = null;
     }
     this.handlers.onStatus?.("disconnected");
+  }
+}
+
+// TEMPORAL — diagnóstico para la alerta de "alguien pidió unirse al live".
+// TikTok agrupa esa función bajo el nombre "link mic" en su protocolo (así
+// se ve en librerías de código abierto como TikTok-Live-Connector: eventos
+// tipo LinkMicMethod, LinkMessage, LinkLayer, etc.), pero no hay forma de
+// confirmar desde aquí si Euler Stream realmente reenvía alguno de esos
+// eventos al navegador — puede que TikTok solo se lo mande al anfitrión de
+// forma privada, sin pasar por el canal público de mensajes. Este log deja
+// ver en la consola del navegador cualquier mensaje cuyo "type" mencione
+// "link", para poder capturar el evento real la próxima vez que alguien
+// pida unirse en un live real, y programar la alerta con datos ciertos en
+// vez de adivinar el formato. Se puede borrar una vez identificado (o si
+// se confirma que nunca llega nada).
+const loggedUnknownEventTypes = new Set<string>();
+function logUnknownLinkMicEvent(item: unknown) {
+  if (typeof item !== "object" || item === null) return;
+  const type = (item as Record<string, unknown>).type;
+  if (typeof type !== "string") return;
+  const t = type.toLowerCase();
+  if (t.includes("link") || t.includes("invite") || t.includes("cohost") || t.includes("guest")) {
+    // eslint-disable-next-line no-console
+    console.log("[LiveNest] Posible evento de invitado/link mic:", JSON.stringify(item));
+    return;
+  }
+  // Red de seguridad: si aparece un tipo que nunca hemos visto (no es chat,
+  // regalo, like, follow, share, sub, roomInfo...), lo dejamos ver una sola
+  // vez por tipo, por si el evento real no usa la palabra "link" en absoluto.
+  const known = [
+    "webcastchatmessage", "chat", "chatmessage",
+    "webcastgiftmessage", "gift", "giftmessage",
+    "webcastlikemessage", "like", "likemessage",
+    "webcastroomviewercountmessage", "viewer", "roomviewercountmessage", "roominfo",
+    "webcastsocialmessage", "follow", "socialmessage",
+    "webcastmembermessage", "member", "membermessage", "webcastroommessage",
+    "webcastsharemessage", "share", "sharemessage",
+    "webcastsubmessage", "sub", "subscribemessage",
+  ];
+  if (!known.includes(t) && !loggedUnknownEventTypes.has(t)) {
+    loggedUnknownEventTypes.add(t);
+    // eslint-disable-next-line no-console
+    console.log("[LiveNest] Tipo de evento nunca visto:", type, JSON.stringify(item));
   }
 }
 
