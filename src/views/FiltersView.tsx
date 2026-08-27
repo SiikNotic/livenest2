@@ -146,9 +146,15 @@ function FilterForm({ onCreate, onCancel }: {
   const [value, setValue] = useState("");
   const [replacement, setReplacement] = useState("");
 
+  // El campo "emoji" no compara contra ningún valor puntual — bloquea
+  // cualquier mensaje que contenga un emoji, así que no tiene sentido
+  // pedirle al usuario que escriba algo (la base sí exige un valor no
+  // vacío, así que se manda uno fijo por dentro).
+  const isEmojiField = field === "emoji";
+
   const submit = () => {
-    if (!value.trim()) return;
-    onCreate({ type, field, value: value.trim(), replacement: replacement.trim() || null });
+    if (!isEmojiField && !value.trim()) return;
+    onCreate({ type, field, value: isEmojiField ? "emoji" : value.trim(), replacement: replacement.trim() || null });
   };
 
   return (
@@ -173,15 +179,19 @@ function FilterForm({ onCreate, onCancel }: {
           </select>
         </div>
       </div>
-      <div>
-        <label className="label">{t("filters_value")}</label>
-        <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={field === "user" ? "@usuario" : field === "regex" ? "\\d+" : "palabra"}
-          className="input"
-        />
-      </div>
+      {isEmojiField ? (
+        <p className="text-xs text-muted px-1">{t("filters_emoji_hint")}</p>
+      ) : (
+        <div>
+          <label className="label">{t("filters_value")}</label>
+          <input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={field === "user" ? "@usuario" : field === "regex" ? "\\d+" : "palabra"}
+            className="input"
+          />
+        </div>
+      )}
       {type === "replace" && (
         <div>
           <label className="label">{t("filters_replacement")}</label>

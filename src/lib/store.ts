@@ -275,14 +275,28 @@ export const useStore = create<State>((set, get) => ({
   saveSettings: async (partial: Partial<Settings>) => {
     const state = get();
     if (!state.settings) return;
+    const settingsId = state.settings.id;
     const updated = { ...state.settings, ...partial, updated_at: new Date().toISOString() };
     set({ settings: updated });
     pendingSave = { ...pendingSave, ...partial };
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
-      if (pendingSave && state.settings) {
-        await supabase.from("settings").update(pendingSave).eq("id", state.settings.id);
-        pendingSave = null;
+      // Se saca una copia y se limpia pendingSave ANTES de esperar la
+      // respuesta del servidor — si no, un cambio nuevo que llega mientras
+      // esta petición todavía está en vuelo se acumula en pendingSave, y
+      // cuando ESTA petición termina y pone pendingSave = null, borra ese
+      // cambio nuevo sin haberlo guardado nunca (se perdía en silencio:
+      // la UI lo mostraba aplicado, pero nunca llegaba a la base y
+      // desaparecía al recargar).
+      const toSave = pendingSave;
+      pendingSave = null;
+      if (!toSave) return;
+      const { error } = await supabase.from("settings").update(toSave).eq("id", settingsId);
+      if (error) {
+        // Antes un fallo acá (red, RLS, lo que sea) quedaba en silencio —
+        // el usuario creía que su ajuste había quedado guardado.
+        set({ error: "No se pudo guardar el ajuste. Revisa tu conexión e inténtalo de nuevo." });
+        setTimeout(() => set((s) => (s.error?.startsWith("No se pudo guardar el ajuste") ? { error: null } : {})), 6000);
       }
     }, 600);
   },

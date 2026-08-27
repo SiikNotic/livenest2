@@ -22,6 +22,10 @@ proxy de búsqueda genérico. Límite simple por IP como mitigación mínima.
 const requestsByIp = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 20;
+// Sin esto, cada IP distinta que alguna vez buscó una canción se queda en
+// el mapa para siempre (nada la borra cuando deja de pedir) — con
+// suficiente tráfico a lo largo de la vida de la función, crece sin techo.
+const MAX_TRACKED_IPS = 5000;
 
 function clientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
@@ -34,6 +38,10 @@ function isRateLimited(ip: string): boolean {
   const timestamps = (requestsByIp.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
   timestamps.push(now);
   requestsByIp.set(ip, timestamps);
+  if (requestsByIp.size > MAX_TRACKED_IPS) {
+    const oldest = requestsByIp.keys().next().value;
+    if (oldest !== undefined) requestsByIp.delete(oldest);
+  }
   return timestamps.length > RATE_LIMIT_MAX;
 }
 

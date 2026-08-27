@@ -33,6 +33,10 @@ por IP como mitigación mínima contra abuso de la cuota de Euler Stream.
 const requestsByIp = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 30;
+// Sin esto, cada IP distinta que alguna vez llamó a este endpoint se queda
+// en el mapa para siempre — con suficiente tráfico a lo largo de la vida
+// de la función, crece sin techo.
+const MAX_TRACKED_IPS = 5000;
 
 function clientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
@@ -45,7 +49,34 @@ function isRateLimited(ip: string): boolean {
   const timestamps = (requestsByIp.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
   timestamps.push(now);
   requestsByIp.set(ip, timestamps);
+  if (requestsByIp.size > MAX_TRACKED_IPS) {
+    const oldest = requestsByIp.keys().next().value;
+    if (oldest !== undefined) requestsByIp.delete(oldest);
+  }
   return timestamps.length > RATE_LIMIT_MAX;
+}
+
+// La API key de Euler Stream casi nunca cambia — cachearla evita una
+// consulta a la base en cada chequeo de estado (mismo arreglo aplicado en
+// tiktok-connect, que sufría exactamente este mismo problema).
+let cachedApiKey: { value: string; fetchedAt: number } | null = null;
+const API_KEY_CACHE_TTL_MS = 5 * 60 * 1000;
+
+async function getEulerStreamApiKey(
+  supabase: ReturnType<typeof createClient>
+): Promise<string | null> {
+  if (cachedApiKey && Date.now() - cachedApiKey.fetchedAt < API_KEY_CACHE_TTL_MS) {
+    return cachedApiKey.value;
+  }
+  const { data, error } = await supabase
+    .from("api_secrets")
+    .select("secret_value")
+    .eq("provider", "eulerstream")
+    .eq("key_name", "api_key")
+    .maybeSingle();
+  if (error || !data) return null;
+  cachedApiKey = { value: data.secret_value, fetchedAt: Date.now() };
+  return data.secret_value;
 }
 
 Deno.serve(async (req: Request) => {
@@ -91,21 +122,13 @@ Deno.serve(async (req: Request) => {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
-  const { data: secretRow, error: secretErr } = await supabase
-    .from("api_secrets")
-    .select("secret_value")
-    .eq("provider", "eulerstream")
-    .eq("key_name", "api_key")
-    .maybeSingle();
-
-  if (secretErr || !secretRow) {
+  const apiKey = await getEulerStreamApiKey(supabase);
+  if (!apiKey) {
     return new Response(JSON.stringify({ error: "No se encontró la API key de Euler Stream." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-
-  const apiKey = secretRow.secret_value;
 
   try {
     const checkUrl = new URL(`https://api.eulerstream.com/webcast/anchors/${encodeURIComponent(username)}/room_id`);

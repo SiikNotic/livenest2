@@ -38,7 +38,14 @@ export function applyFilters(
       if (f.field === "user" && username.toLowerCase().includes(f.value.toLowerCase())) {
         return { shouldRead: false, finalText: "", reason: `Usuario bloqueado` };
       }
-      if (f.field === "emoji" && /[\u{1F000}-\u{1FAFF}]/gu.test(trimmed) && f.value === "*") {
+      // El campo "value" no se usa para este tipo — es un filtro de
+      // presencia ("¿el mensaje tiene algún emoji?"), no de coincidencia
+      // exacta. Antes exigía que value fuera literalmente "*", pero ni la
+      // base (columna NOT NULL) ni el formulario dejaban crear ese filtro
+      // sin escribir un valor, y nada indicaba que tenía que ser ese
+      // asterisco exacto — en la práctica, el filtro de emoji nunca
+      // bloqueaba nada.
+      if (f.field === "emoji" && /[\u{1F000}-\u{1FAFF}]/gu.test(trimmed)) {
         return { shouldRead: false, finalText: "", reason: "Contiene emoji" };
       }
       if (f.field === "regex") {
