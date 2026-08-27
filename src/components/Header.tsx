@@ -6,7 +6,6 @@ import type { TabId } from "../App";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { listSavedChannels } from "../lib/savedChannels";
-import { MembershipCard } from "./MembershipCard";
 
 // TikTok bloquea la carga directa de sus imágenes desde otros sitios
 // (hotlink) — este proxy público las trae desde el servidor, evitando ese
@@ -60,7 +59,7 @@ export function Header({ active, onChange }: Props) {
   const stopSpeaking = useStore((s) => s.stopSpeaking);
   const sessionStartedAt = useStore((s) => s.sessionStartedAt);
   const { lang, setLang, t } = useI18n();
-  const { isAdmin, profile, user, hasActiveLicense } = useAuth();
+  const { isAdmin, profile, user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [channelAvatar, setChannelAvatar] = useState<string | null>(null);
 
@@ -301,14 +300,6 @@ export function Header({ active, onChange }: Props) {
                 </button>
               )}
             </nav>
-
-            {/* Sin licencia activa (nunca tuvo, se le venció, o canceló) —
-             * vuelve a aparecer sola apenas hasActiveLicense es false. */}
-            {!hasActiveLicense && (
-              <div className="flex-shrink-0 px-3 pb-1">
-                <MembershipCard />
-              </div>
-            )}
 
             {/* Idioma + cuenta, fijos abajo */}
             <div className="flex-shrink-0 border-t border-border p-3 space-y-3">
