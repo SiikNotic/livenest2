@@ -140,6 +140,17 @@ class VoiceManager {
   private voices: SpeechSynthesisVoice[] = [];
   private listeners = new Set<() => void>();
   private currentAudio: HTMLAudioElement | null = null;
+  // La promesa de un speak() en curso solo se resuelve cuando termina el
+  // audio (onended/onerror) o el temporizador de seguridad del navegador.
+  // Pero pausar un <audio> (lo que hace stop()) NO dispara ninguno de esos
+  // eventos — así que si algo interrumpe una lectura a mitad de camino (ej.
+  // "Probar voz" en Voces mientras se está leyendo un mensaje del chat), la
+  // promesa de esa lectura interrumpida se queda colgada para siempre. Como
+  // el store espera esa promesa antes de seguir con la cola de lectura, la
+  // lectura del chat quedaba trabada hasta reconectar. Guardar acá el
+  // "finish" pendiente deja que stop() lo dispare de una, resolviendo esa
+  // promesa al instante en vez de dejarla esperando algo que nunca llega.
+  private currentFinish: (() => void) | null = null;
 
   /**
    * Google TTS, ElevenLabs and Inworld are member-only and gated server-side by the
@@ -398,8 +409,10 @@ class VoiceManager {
         if (resolved) return;
         resolved = true;
         clearTimeout(timer);
+        if (this.currentFinish === finish) this.currentFinish = null;
         resolve();
       };
+      this.currentFinish = finish;
 
       const u = new SpeechSynthesisUtterance(text);
       let selectedVoice: SpeechSynthesisVoice | undefined;
@@ -501,9 +514,19 @@ class VoiceManager {
     this.currentAudio = audio;
 
     return new Promise((resolve) => {
-      audio.onended = () => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); };
-      audio.onerror = () => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); };
-      audio.play().catch(() => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); });
+      let resolved = false;
+      const finish = () => {
+        if (resolved) return;
+        resolved = true;
+        if (this.currentFinish === finish) this.currentFinish = null;
+        URL.revokeObjectURL(audioUrl);
+        if (this.currentAudio === audio) this.currentAudio = null;
+        resolve();
+      };
+      this.currentFinish = finish;
+      audio.onended = finish;
+      audio.onerror = finish;
+      audio.play().catch(finish);
     });
   }
 
@@ -572,9 +595,19 @@ class VoiceManager {
     this.currentAudio = audio;
 
     return new Promise<void>((resolve) => {
-      audio.onended = () => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); };
-      audio.onerror = () => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); };
-      audio.play().catch(() => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); });
+      let resolved = false;
+      const finish = () => {
+        if (resolved) return;
+        resolved = true;
+        if (this.currentFinish === finish) this.currentFinish = null;
+        URL.revokeObjectURL(audioUrl);
+        if (this.currentAudio === audio) this.currentAudio = null;
+        resolve();
+      };
+      this.currentFinish = finish;
+      audio.onended = finish;
+      audio.onerror = finish;
+      audio.play().catch(finish);
     });
   }
 
@@ -637,9 +670,19 @@ class VoiceManager {
     this.currentAudio = audio;
 
     return new Promise<void>((resolve) => {
-      audio.onended = () => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); };
-      audio.onerror = () => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); };
-      audio.play().catch(() => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); });
+      let resolved = false;
+      const finish = () => {
+        if (resolved) return;
+        resolved = true;
+        if (this.currentFinish === finish) this.currentFinish = null;
+        URL.revokeObjectURL(audioUrl);
+        if (this.currentAudio === audio) this.currentAudio = null;
+        resolve();
+      };
+      this.currentFinish = finish;
+      audio.onended = finish;
+      audio.onerror = finish;
+      audio.play().catch(finish);
     });
   }
 
@@ -648,6 +691,15 @@ class VoiceManager {
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;
+    }
+    // Fuerza a resolver cualquier speak() que haya quedado esperando un
+    // evento que, al pausar/cancelar, nunca va a llegar (ver el comentario
+    // en currentFinish más arriba) — sin esto, quien esperaba esa lectura
+    // (ej. la cola de lectura del chat) se quedaba trabado para siempre.
+    if (this.currentFinish) {
+      const finish = this.currentFinish;
+      this.currentFinish = null;
+      finish();
     }
   }
 
