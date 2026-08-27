@@ -149,21 +149,13 @@ export class TikTokConnection {
       // 4500 = TIKTOK_CLOSED_CONNECTION, 4555 = MAX_LIFETIME_EXCEEDED
       // 4556 = WEBCAST_FETCH_ERROR, 4557 = ROOM_INFO_FETCH_ERROR
 
-      // 4404 (NOT_LIVE) can be a false negative — Euler Stream's live check
-      // sometimes fails transiently. Retry a few times before declaring offline.
-      // These retries are an internal check, not a real reconnect the user
-      // needs to see, so they don't trigger the "Reconectando…" banner.
+      // 4404 (NOT_LIVE): el canal no está en directo. Se avisa de inmediato y
+      // se deja de intentar — nada de reintentos ni de mostrar "Reconectando…"
+      // por un canal que ya sabemos que no está en vivo.
       if (ev.code === 4404) {
-        if (this.retryCount < 3) {
-          this.retryCount++;
-          this.retryTimer = setTimeout(() => {
-            this.reconnectSilent();
-          }, 1500 * this.retryCount);
-        } else {
-          this.stopAutoReconnect();
-          this.handlers.onStatus?.("disconnected");
-          this.handlers.onNotLive?.(username);
-        }
+        this.stopAutoReconnect();
+        this.handlers.onStatus?.("disconnected");
+        this.handlers.onNotLive?.(username);
       } else if (
         ev.code === 4556 || ev.code === 4557 ||
         ev.code === 4500 || ev.code === 4006 ||
