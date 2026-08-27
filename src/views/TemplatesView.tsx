@@ -35,8 +35,6 @@ export function TemplatesView() {
     loadTemplates();
   };
 
-  const active = templates.find((tmpl) => tmpl.enabled);
-
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="card">
@@ -44,15 +42,9 @@ export function TemplatesView() {
           <LayoutTemplate className="w-5 h-5 text-primary" />
           <h2 className="text-sm font-bold">{t("templates_title")}</h2>
         </div>
-        <p className="text-xs text-muted mb-3">
+        <p className="text-xs text-muted">
           {t("templates_help")}
         </p>
-        {active && (
-          <div className="bg-primary/10 border border-primary/30 rounded-xl p-3">
-            <p className="text-xs text-primary-400 font-semibold mb-1">{t("templates_active")}</p>
-            <p className="text-sm font-mono">{active.content}</p>
-          </div>
-        )}
       </div>
 
       <div className="flex items-center justify-between">
