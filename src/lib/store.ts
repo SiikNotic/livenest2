@@ -5,6 +5,7 @@ import { soundManager, isCustomSoundUrl } from "./soundManager";
 import { applyFilters, applyTemplate } from "./eventProcessor";
 import { TikTokConnection, type TikTokEvent, type ConnectionStatus } from "./tiktokConnection";
 import { ytPlayer } from "./youtubePlayer";
+import { useI18n } from "./i18n";
 
 const MAX_MESSAGES = 100;
 const MAX_EVENTS = 200;
@@ -91,7 +92,7 @@ export const useStore = create<State>((set, get) => ({
   connect: async (username: string) => {
     const clean = username.trim().replace(/^@/, "");
     if (!clean) {
-      set({ error: "Introduce un nombre de usuario válido" });
+      set({ error: useI18n.getState().t("err_invalid_user") });
       return;
     }
 
@@ -308,7 +309,7 @@ export const useStore = create<State>((set, get) => ({
   loadSettings: async () => {
     const { data, error } = await supabase.rpc("ensure_settings");
     if (error) {
-      set({ error: "No se pudieron cargar los ajustes" });
+      set({ error: useI18n.getState().t("store_err_load_settings") });
       return;
     }
     set({ settings: data as Settings });
@@ -337,8 +338,9 @@ export const useStore = create<State>((set, get) => ({
       if (error) {
         // Antes un fallo acá (red, RLS, lo que sea) quedaba en silencio —
         // el usuario creía que su ajuste había quedado guardado.
-        set({ error: "No se pudo guardar el ajuste. Revisa tu conexión e inténtalo de nuevo." });
-        setTimeout(() => set((s) => (s.error?.startsWith("No se pudo guardar el ajuste") ? { error: null } : {})), 6000);
+        const saveErrorMsg = useI18n.getState().t("store_err_save_setting");
+        set({ error: saveErrorMsg });
+        setTimeout(() => set((s) => (s.error === saveErrorMsg ? { error: null } : {})), 6000);
       }
     }, 600);
   },
@@ -349,7 +351,7 @@ export const useStore = create<State>((set, get) => ({
       .select("*")
       .order("created_at", { ascending: false });
     if (error) {
-      set({ error: "No se pudieron cargar los filtros" });
+      set({ error: useI18n.getState().t("store_err_load_filters") });
       return;
     }
     set({ filters: (data as FilterRule[]) ?? [] });
@@ -361,7 +363,7 @@ export const useStore = create<State>((set, get) => ({
       .select("*")
       .order("created_at", { ascending: false });
     if (error) {
-      set({ error: "No se pudieron cargar las plantillas" });
+      set({ error: useI18n.getState().t("store_err_load_templates") });
       return;
     }
     set({ templates: (data as Template[]) ?? [] });
@@ -466,20 +468,23 @@ export const useStore = create<State>((set, get) => ({
       if (shouldSpeak) {
         // Usar el nombre del canal (nickname) si está disponible; si no, el username
         const safeName = cleanNameForSpeech(nickname || username);
+        const tVoice = useI18n.getState().t;
         let text = "";
         if (type === "gift") {
-          const giftName = detail ?? "un regalo";
+          const giftName = detail ?? tVoice("voice_alert_gift_default");
           text = count > 1
-            ? `${safeName} envió ${giftName} x${count}`
-            : `${safeName} envió ${giftName}`;
+            ? tVoice("voice_alert_gift_multi", { name: safeName, gift: giftName, count })
+            : tVoice("voice_alert_gift_single", { name: safeName, gift: giftName });
         } else if (type === "follow") {
-          text = `${safeName} te siguió`;
+          text = tVoice("voice_alert_follow", { name: safeName });
         } else if (type === "like") {
-          text = count > 1 ? `${safeName} dio ${count} likes` : `${safeName} dio un like`;
+          text = count > 1
+            ? tVoice("voice_alert_like_multi", { name: safeName, count })
+            : tVoice("voice_alert_like_single", { name: safeName });
         } else if (type === "share") {
-          text = `${safeName} compartió el direct`;
+          text = tVoice("voice_alert_share", { name: safeName });
         } else if (type === "sub") {
-          text = `${safeName} se suscribió`;
+          text = tVoice("voice_alert_sub", { name: safeName });
         }
         if (text) {
           const voiceId = state.settings.voice_random
@@ -577,7 +582,7 @@ export const useStore = create<State>((set, get) => ({
     // volvía a traer como canción actual — la canción "terminaba" en la UI
     // pero la base seguía pensando que sonaba, y volvía a aparecer.
     if (error) {
-      set({ error: "No se pudo actualizar la canción. Intenta de nuevo." });
+      set({ error: useI18n.getState().t("store_err_update_song") });
       return;
     }
 
@@ -599,7 +604,7 @@ export const useStore = create<State>((set, get) => ({
           .update({ status: "playing" })
           .eq("id", next.id);
         if (nextError) {
-          set({ error: "No se pudo pasar a la siguiente canción." });
+          set({ error: useI18n.getState().t("store_err_next_song") });
           await get().loadSongQueue();
           return;
         }

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { useI18n } from "./i18n";
 
 export type VoiceProvider = "browser" | "google" | "elevenlabs" | "inworld";
 
@@ -245,7 +246,7 @@ class VoiceManager {
       });
 
       if (res.status === 403) {
-        throw new Error("ElevenLabs es solo para miembros. Hazte miembro para desbloquearlo.");
+        throw new Error(useI18n.getState().t("voices_err_member_only_elevenlabs"));
       }
 
       if (!res.ok) {
@@ -273,7 +274,7 @@ class VoiceManager {
       }
       this.elevenlabsLoaded = true;
     } catch (err) {
-      this.elevenlabsError = err instanceof Error ? err.message : "No se pudieron cargar las voces de ElevenLabs";
+      this.elevenlabsError = err instanceof Error ? err.message : useI18n.getState().t("voices_err_load_elevenlabs");
       // Keep whatever list we already had (fallback or previous successful fetch)
     } finally {
       this.elevenlabsLoading = false;
@@ -321,7 +322,7 @@ class VoiceManager {
       });
 
       if (res.status === 403) {
-        throw new Error("Inworld es solo para miembros. Hazte miembro para desbloquearlo.");
+        throw new Error(useI18n.getState().t("voices_err_member_only_inworld"));
       }
 
       if (!res.ok) {
@@ -349,7 +350,7 @@ class VoiceManager {
       }
       this.inworldLoaded = true;
     } catch (err) {
-      this.inworldError = err instanceof Error ? err.message : "No se pudieron cargar las voces de Inworld";
+      this.inworldError = err instanceof Error ? err.message : useI18n.getState().t("voices_err_load_inworld");
       // Keep whatever list we already had (fallback or previous successful fetch)
     } finally {
       this.inworldLoading = false;
@@ -478,7 +479,7 @@ class VoiceManager {
     }
 
     if (res.status === 403) {
-      throw new Error("Esta voz es solo para miembros. Hazte miembro para desbloquearla.");
+      throw new Error(useI18n.getState().t("voices_err_member_only_voice"));
     }
 
     if (!res.ok) {
@@ -501,7 +502,7 @@ class VoiceManager {
 
     const audioBlob = await res.blob();
     if (audioBlob.size === 0) {
-      throw new Error("Voz gratuita: el servidor devolvió audio vacío");
+      throw new Error(useI18n.getState().t("voices_err_free_empty_audio"));
     }
 
     const audioUrl = URL.createObjectURL(audioBlob);
@@ -566,7 +567,7 @@ class VoiceManager {
     }
 
     if (res.status === 403) {
-      throw new Error("ElevenLabs es solo para miembros. Hazte miembro para desbloquearlo.");
+      throw new Error(useI18n.getState().t("voices_err_member_only_elevenlabs"));
     }
 
     if (!res.ok) {
@@ -586,7 +587,7 @@ class VoiceManager {
 
     const audioBlob = await res.blob();
     if (audioBlob.size === 0) {
-      throw new Error("ElevenLabs: el servidor devolvió audio vacío");
+      throw new Error(useI18n.getState().t("voices_err_elevenlabs_empty_audio"));
     }
 
     const audioUrl = URL.createObjectURL(audioBlob);
@@ -641,7 +642,7 @@ class VoiceManager {
     }
 
     if (res.status === 403) {
-      throw new Error("Inworld es solo para miembros. Hazte miembro para desbloquearlo.");
+      throw new Error(useI18n.getState().t("voices_err_member_only_inworld"));
     }
 
     if (!res.ok) {
@@ -661,7 +662,7 @@ class VoiceManager {
 
     const audioBlob = await res.blob();
     if (audioBlob.size === 0) {
-      throw new Error("Inworld: el servidor devolvió audio vacío");
+      throw new Error(useI18n.getState().t("voices_err_inworld_empty_audio"));
     }
 
     const audioUrl = URL.createObjectURL(audioBlob);

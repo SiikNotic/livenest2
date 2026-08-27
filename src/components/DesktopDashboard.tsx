@@ -6,6 +6,7 @@ import { GripVertical, X, RotateCcw, LayoutGrid, ChevronDown, Eye } from "lucide
 import { ChatView } from "../views/ChatView";
 import { EventsView } from "../views/EventsView";
 import { MusicView } from "../views/MusicView";
+import { useI18n, type TranslationKey } from "../lib/i18n";
 
 const ReactGridLayout = WidthProvider(GridLayout);
 
@@ -27,10 +28,10 @@ de qué tamaño se ven, nunca duplica su lógica interna.
 
 type PanelId = "chat" | "events" | "music";
 
-const PANEL_LABELS: Record<PanelId, string> = {
-  chat: "Chat en vivo",
-  events: "Alertas",
-  music: "Música",
+const PANEL_LABEL_KEYS: Record<PanelId, TranslationKey> = {
+  chat: "dash_panel_chat",
+  events: "dash_panel_events",
+  music: "dash_panel_music",
 };
 
 const PANEL_COMPONENTS: Record<PanelId, React.ComponentType> = {
@@ -64,11 +65,11 @@ const LAYOUT_PRESETS: Record<string, Layout[]> = {
   ],
 };
 
-const PRESET_LABELS: { id: keyof typeof LAYOUT_PRESETS; label: string }[] = [
-  { id: "default", label: "Predeterminado" },
-  { id: "chatFocus", label: "Enfoque en Chat" },
-  { id: "musicFocus", label: "Enfoque en Música" },
-  { id: "compact", label: "Compacto" },
+const PRESET_LABEL_KEYS: { id: keyof typeof LAYOUT_PRESETS; labelKey: TranslationKey }[] = [
+  { id: "default", labelKey: "dash_preset_default" },
+  { id: "chatFocus", labelKey: "dash_preset_chat_focus" },
+  { id: "musicFocus", labelKey: "dash_preset_music_focus" },
+  { id: "compact", labelKey: "dash_preset_compact" },
 ];
 
 const STORAGE_KEY = "livenest_dashboard_layout";
@@ -98,6 +99,7 @@ function loadHiddenPanels(): PanelId[] {
 }
 
 export function DesktopDashboard() {
+  const { t } = useI18n();
   const [layout, setLayout] = useState<Layout[]>(() => loadStoredLayout() ?? LAYOUT_PRESETS.default);
   const [hidden, setHidden] = useState<PanelId[]>(() => loadHiddenPanels());
   const [presetOpen, setPresetOpen] = useState(false);
@@ -158,20 +160,23 @@ export function DesktopDashboard() {
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-bg-soft border border-border text-xs font-semibold text-text-soft hover:text-text transition-colors"
           >
             <LayoutGrid className="w-3.5 h-3.5" />
-            {isCustom ? "Mi diseño" : PRESET_LABELS.find((p) => p.id === Object.keys(LAYOUT_PRESETS).find((k) => LAYOUT_PRESETS[k] === layout))?.label ?? "Diseño"}
+            {isCustom ? t("dash_my_layout") : (() => {
+              const key = PRESET_LABEL_KEYS.find((p) => p.id === Object.keys(LAYOUT_PRESETS).find((k) => LAYOUT_PRESETS[k] === layout))?.labelKey;
+              return key ? t(key) : t("dash_layout_label");
+            })()}
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
           {presetOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setPresetOpen(false)} />
               <div className="absolute top-full left-0 mt-1 z-20 w-48 rounded-xl bg-bg-card border border-border shadow-xl overflow-hidden py-1">
-                {PRESET_LABELS.map((p) => (
+                {PRESET_LABEL_KEYS.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => applyPreset(p.id)}
                     className="w-full text-left px-3 py-2 text-xs font-medium text-text-soft hover:bg-bg-hover hover:text-text transition-colors"
                   >
-                    {p.label}
+                    {t(p.labelKey)}
                   </button>
                 ))}
               </div>
@@ -184,7 +189,7 @@ export function DesktopDashboard() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bg-soft border border-border text-xs font-semibold text-muted hover:text-text transition-colors"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          Restablecer
+          {t("dash_reset")}
         </button>
 
         {hidden.length > 0 && (
@@ -196,7 +201,7 @@ export function DesktopDashboard() {
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
               >
                 <Eye className="w-3.5 h-3.5" />
-                {PANEL_LABELS[id]}
+                {t(PANEL_LABEL_KEYS[id])}
               </button>
             ))}
           </div>
@@ -222,12 +227,12 @@ export function DesktopDashboard() {
               <div key={id} className="rounded-2xl border border-border bg-bg-card overflow-hidden flex flex-col">
                 <div className="panel-drag-handle flex items-center gap-2 px-3 py-2 border-b border-border bg-bg-soft cursor-move flex-shrink-0">
                   <GripVertical className="w-3.5 h-3.5 text-muted" />
-                  <span className="text-xs font-bold text-text-soft flex-1">{PANEL_LABELS[id]}</span>
+                  <span className="text-xs font-bold text-text-soft flex-1">{t(PANEL_LABEL_KEYS[id])}</span>
                   <button
                     onClick={() => hidePanel(id)}
                     className="w-6 h-6 rounded-lg flex items-center justify-center text-muted hover:text-error-400 hover:bg-error-400/10 transition-colors"
-                    title="Cerrar panel"
-                    aria-label={`Cerrar panel de ${PANEL_LABELS[id]}`}
+                    title={t("dash_close_panel_title")}
+                    aria-label={t("dash_close_panel_aria", { panel: t(PANEL_LABEL_KEYS[id]) })}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>

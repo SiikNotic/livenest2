@@ -1,3 +1,5 @@
+import { useI18n } from "./i18n";
+
 export type TikTokEvent =
   | { type: "chat"; username: string; nickname?: string; avatar?: string; message: string; userId?: string; timestamp?: number }
   | { type: "gift"; username: string; nickname?: string; avatar?: string; giftName: string; count: number }
@@ -69,7 +71,7 @@ export class TikTokConnection {
   async connect(username: string): Promise<void> {
     const clean = username.trim().replace(/^@/, "");
     if (!clean) {
-      this.handlers.onError?.("Introduce un nombre de usuario válido");
+      this.handlers.onError?.(useI18n.getState().t("err_invalid_user"));
       return;
     }
     this.silentDisconnect();
@@ -121,7 +123,7 @@ export class TikTokConnection {
       this.ws = new WebSocket(url);
     } catch (err) {
       this.handlers.onStatus?.("error");
-      this.handlers.onError?.(err instanceof Error ? err.message : "No se pudo abrir el WebSocket");
+      this.handlers.onError?.(err instanceof Error ? err.message : useI18n.getState().t("err_open_ws"));
       return;
     }
 
@@ -173,9 +175,7 @@ export class TikTokConnection {
         } else {
           this.stopAutoReconnect();
           this.handlers.onStatus?.("disconnected");
-          this.handlers.onError?.(
-            "No se pudo conectar con el canal. Vuelve a intentarlo en unos segundos."
-          );
+          this.handlers.onError?.(useI18n.getState().t("err_connect"));
         }
       } else if (ev.code === 4005) {
         // La transmisión terminó — para quien mira, es lo mismo que "no está
@@ -670,5 +670,5 @@ function extractUsername(data: Record<string, unknown>, top?: Record<string, unk
     top?.username ??
     top?.user_id ??
     top?.userId;
-  return typeof id === "string" && id.length > 0 ? id : "anónimo";
+  return typeof id === "string" && id.length > 0 ? id : useI18n.getState().t("anon_user");
 }

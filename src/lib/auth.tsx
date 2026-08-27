@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase, type Profile, type UserLicense } from "./supabase";
 import { useStore } from "./store";
+import { useI18n } from "./i18n";
 
 type AuthState = {
   session: Session | null;
@@ -141,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (prof?.banned) {
         await supabase.auth.signOut();
         useStore.getState().resetSession();
-        return { error: "Esta cuenta ha sido suspendida." };
+        return { error: useI18n.getState().t("auth_err_account_suspended") };
       }
     }
     return { error: null };
@@ -164,14 +165,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // antes de que este campo existiera) — se guarda en el propio profiles
   // vía la política RLS que ya deja a cada usuario editar su propia fila.
   const setUsername = useCallback(async (username: string) => {
-    if (!user) return { error: "No autenticado" };
+    if (!user) return { error: useI18n.getState().t("auth_err_not_authenticated") };
     const clean = username.trim();
     if (!/^[a-zA-Z0-9_]{3,24}$/.test(clean)) {
-      return { error: "El usuario debe tener entre 3 y 24 caracteres (letras, números o _)." };
+      return { error: useI18n.getState().t("auth_err_username_length") };
     }
     const { error } = await supabase.from("profiles").update({ username: clean }).eq("id", user.id);
     if (error) {
-      if (error.code === "23505") return { error: "Ese usuario ya está en uso." };
+      if (error.code === "23505") return { error: useI18n.getState().t("auth_err_username_taken") };
       return { error: error.message };
     }
     setProfile((p) => (p ? { ...p, username: clean } : p));

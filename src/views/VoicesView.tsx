@@ -137,7 +137,7 @@ export function VoicesView() {
                 key={p.id}
                 onClick={() => !locked && saveSettings({ voice_provider: p.id })}
                 disabled={locked}
-                title={locked ? "Solo para miembros" : undefined}
+                title={locked ? t("members_only_tooltip") : undefined}
                 className={`relative flex flex-col items-center gap-1 px-2 py-3 rounded-xl transition-all duration-200 card-press ${
                   locked
                     ? "bg-bg-soft text-muted opacity-50 cursor-not-allowed border border-border"
@@ -154,7 +154,7 @@ export function VoicesView() {
                 <Icon className="w-5 h-5" />
                 <span className="text-xs font-bold">{t(p.labelKey)}</span>
                 <span className={`text-[10px] leading-tight text-center ${isActive ? "opacity-80" : "opacity-60"}`}>
-                  {locked ? "Solo miembros" : t(p.descKey)}
+                  {locked ? t("voices_locked_short") : t(p.descKey)}
                 </span>
               </button>
             );
@@ -215,7 +215,7 @@ export function VoicesView() {
           <div className="flex items-start gap-2">
             <Crown className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
             <p className="text-xs text-text-soft">
-              {t(PROVIDERS.find((p) => p.id === provider)!.labelKey)} es solo para miembros. Mostrando las voces del navegador mientras tanto.
+              {t("voices_provider_members_only", { provider: t(PROVIDERS.find((p) => p.id === provider)!.labelKey) })}
             </p>
           </div>
         </div>
@@ -226,7 +226,7 @@ export function VoicesView() {
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-error-400">
-              No se pudo cargar tu lista de voces de ElevenLabs: {voiceManager.elevenlabsVoicesError}
+              {t("voices_err_load_list_elevenlabs", { error: voiceManager.elevenlabsVoicesError ?? "" })}
             </p>
           </div>
         </div>
@@ -237,7 +237,7 @@ export function VoicesView() {
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-error-400">
-              No se pudo cargar tu lista de voces de Inworld: {voiceManager.inworldVoicesError}
+              {t("voices_err_load_list_inworld", { error: voiceManager.inworldVoicesError ?? "" })}
             </p>
           </div>
         </div>
@@ -246,9 +246,9 @@ export function VoicesView() {
       <div className="card">
         <label className="label">
           {effectiveProvider === "elevenlabs" && voiceManager.elevenlabsVoicesLoading
-            ? "Cargando voces de tu cuenta..."
+            ? t("voices_loading_account_voices")
             : effectiveProvider === "inworld" && voiceManager.inworldVoicesLoading
-            ? "Cargando voces de tu cuenta..."
+            ? t("voices_loading_account_voices")
             : t("voices_count", { n: filteredVoices.length })}
         </label>
         <div className="space-y-1.5 max-h-80 overflow-y-auto scrollbar-thin -mr-2 pr-2">

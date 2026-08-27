@@ -6,7 +6,6 @@ import type { TabId } from "../App";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { listSavedChannels } from "../lib/savedChannels";
-import { MembershipCard } from "./MembershipCard";
 
 // TikTok bloquea la carga directa de sus imágenes desde otros sitios
 // (hotlink) — este proxy público las trae desde el servidor, evitando ese
@@ -60,7 +59,7 @@ export function Header({ active, onChange }: Props) {
   const stopSpeaking = useStore((s) => s.stopSpeaking);
   const sessionStartedAt = useStore((s) => s.sessionStartedAt);
   const { lang, setLang, t } = useI18n();
-  const { isAdmin, profile, user, hasActiveLicense } = useAuth();
+  const { isAdmin, profile, user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [channelAvatar, setChannelAvatar] = useState<string | null>(null);
 
@@ -200,7 +199,7 @@ export function Header({ active, onChange }: Props) {
                 className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-bg-soft border border-border text-xs font-semibold hover:bg-bg-hover transition-colors card-press"
               >
                 {isAdmin ? <Shield className="w-3.5 h-3.5 text-error-400" /> : <Crown className="w-3.5 h-3.5 text-primary" />}
-                <span>{isAdmin ? "Admin" : "Cuenta"}</span>
+                <span>{isAdmin ? "Admin" : t("nav_account")}</span>
               </button>
             ) : null}
             <button
@@ -214,12 +213,12 @@ export function Header({ active, onChange }: Props) {
               {user ? (
                 <>
                   {isAdmin ? <Shield className="w-3.5 h-3.5 text-error-400" /> : <Crown className="w-3.5 h-3.5 text-primary" />}
-                  <span className="hidden sm:inline">{isAdmin ? "Admin" : "Cuenta"}</span>
+                  <span className="hidden sm:inline">{isAdmin ? "Admin" : t("nav_account")}</span>
                 </>
               ) : (
                 <>
                   <Crown className="w-3.5 h-3.5" />
-                  <span>Entrar</span>
+                  <span>{t("nav_signin")}</span>
                 </>
               )}
             </button>
@@ -268,7 +267,7 @@ export function Header({ active, onChange }: Props) {
             </div>
 
             {/* Lista con scroll */}
-            <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+            <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-0.5">
               {MENU_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const isActive = active === item.id;
@@ -301,14 +300,6 @@ export function Header({ active, onChange }: Props) {
                 </button>
               )}
             </nav>
-
-            {/* Sin licencia activa (nunca tuvo, se le venció, o canceló) —
-             * vuelve a aparecer sola apenas hasActiveLicense es false. */}
-            {!hasActiveLicense && (
-              <div className="flex-shrink-0 px-3 pb-1">
-                <MembershipCard />
-              </div>
-            )}
 
             {/* Idioma + cuenta, fijos abajo */}
             <div className="flex-shrink-0 border-t border-border p-3 space-y-3">
@@ -362,12 +353,12 @@ export function Header({ active, onChange }: Props) {
                   {user ? (
                     <>
                       <p className="text-xs font-bold truncate">
-                        {isAdmin ? "Administrador" : profile?.username ? `@${profile.username}` : "Mi cuenta"}
+                        {isAdmin ? t("role_admin") : profile?.username ? `@${profile.username}` : t("tab_account")}
                       </p>
                       <p className="text-[11px] text-muted truncate">{profile?.email ?? user.email}</p>
                     </>
                   ) : (
-                    <p className="text-xs font-bold">{lang === "es" ? "Entrar" : "Sign in"}</p>
+                    <p className="text-xs font-bold">{t("nav_signin")}</p>
                   )}
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" />
