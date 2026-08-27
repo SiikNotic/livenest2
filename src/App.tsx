@@ -55,11 +55,18 @@ export default function App() {
   const updateSongStatus = useStore((s) => s.updateSongStatus);
 
   useEffect(() => {
-    if (!settings?.music_enabled) return;
+    // Red de seguridad para cuando la cola tiene canciones pero ninguna
+    // está marcada "playing" (ej. tras recargar la página con un estado
+    // raro en la base). No debe pisar el ajuste de "Reproducir
+    // automáticamente": sin este chequeo, una canción pedida por chat
+    // arrancaba sola igual aunque el usuario tuviera el autoplay
+    // desactivado — store.ts ya respeta ese ajuste al insertar una
+    // canción nueva, pero este efecto lo ignoraba por completo.
+    if (!settings?.music_enabled || !settings?.music_autoplay) return;
     if (!currentSong && songQueue.length > 0) {
       updateSongStatus(songQueue[0].id, "playing");
     }
-  }, [songQueue, currentSong, settings?.music_enabled, updateSongStatus]);
+  }, [songQueue, currentSong, settings?.music_enabled, settings?.music_autoplay, updateSongStatus]);
 
   useEffect(() => {
     const vid = currentSong?.video_id ?? null;

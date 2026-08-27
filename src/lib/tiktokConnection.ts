@@ -36,6 +36,7 @@ export class TikTokConnection {
   private static readonly MAX_SEEN = 500;
   // TEMPORAL — ver el comentario en handleMessage().
   private loggedUnknownEventTypes = new Set<string>();
+  private static readonly MAX_LOGGED_UNKNOWN_EVENT_TYPES = 50;
 
   constructor(handlers: Handlers) {
     this.handlers = handlers;
@@ -205,6 +206,10 @@ export class TikTokConnection {
     const lower = type.toLowerCase();
     if (!TikTokConnection.LINK_MIC_KEYWORDS.some((kw) => lower.includes(kw))) return;
     if (this.loggedUnknownEventTypes.has(type)) return;
+    // Bounded like seenKeys above — a long-running stream shouldn't be able
+    // to grow this set forever if TikTok/Euler Stream ends up emitting many
+    // distinct link-mic-related type strings over a multi-hour live.
+    if (this.loggedUnknownEventTypes.size >= TikTokConnection.MAX_LOGGED_UNKNOWN_EVENT_TYPES) return;
     this.loggedUnknownEventTypes.add(type);
     // eslint-disable-next-line no-console
     console.log(`[LiveNest][diagnóstico link-mic] tipo de evento nuevo: "${type}" — payload completo:`, item);
