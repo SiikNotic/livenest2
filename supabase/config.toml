@@ -1,0 +1,7 @@
+# La verificación JWT por defecto de Supabase exige un header "Authorization: Bearer <token>".
+# Los navegadores NO pueden enviar headers personalizados al abrir un WebSocket, así que esta
+# función (que ahora actúa como proxy WebSocket hacia Euler Stream) debe tener la verificación
+# desactivada. La función sigue siendo segura: la API key de Euler Stream vive solo en el
+# servidor (tabla `api_secrets`, leída con la service role key) y nunca se envía al cliente.
+[functions.tiktok-connect]
+verify_jwt = false
