@@ -219,7 +219,7 @@ export function Header({ active, onChange }: Props) {
               ) : (
                 <>
                   <Crown className="w-3.5 h-3.5" />
-                  <span>Entrar</span>
+                  <span>{t("nav_signin")}</span>
                 </>
               )}
             </button>

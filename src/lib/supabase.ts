@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { useI18n } from "./i18n";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -110,16 +111,16 @@ export type SongRequest = {
 export async function uploadAlertSound(file: File, eventKey: string): Promise<string> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData?.user) {
-    throw new Error("Debes iniciar sesión para subir un sonido personalizado.");
+    throw new Error(useI18n.getState().t("upload_err_login_required"));
   }
 
   const ext = file.name.split(".").pop()?.toLowerCase() || "mp3";
   const allowedExt = ["mp3", "wav", "ogg"];
   if (!allowedExt.includes(ext)) {
-    throw new Error("Formato no soportado. Usa mp3, wav u ogg.");
+    throw new Error(useI18n.getState().t("upload_err_bad_format"));
   }
   if (file.size > 5 * 1024 * 1024) {
-    throw new Error("El archivo supera el límite de 5MB.");
+    throw new Error(useI18n.getState().t("upload_err_too_big"));
   }
 
   const path = `${userData.user.id}/${eventKey}-${Date.now()}.${ext}`;

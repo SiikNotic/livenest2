@@ -187,7 +187,7 @@ function FilterForm({ onCreate, onCancel }: {
           <input
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder={field === "user" ? "@usuario" : field === "regex" ? "\\d+" : "palabra"}
+            placeholder={field === "user" ? t("filters_placeholder_user") : field === "regex" ? "\\d+" : t("filters_placeholder_word")}
             className="input"
           />
         </div>

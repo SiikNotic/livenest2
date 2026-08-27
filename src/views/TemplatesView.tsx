@@ -113,7 +113,7 @@ function TemplateForm({ template, onSave, onCancel }: {
 }) {
   const { t } = useI18n();
   const [name, setName] = useState(template?.name ?? "");
-  const [content, setContent] = useState(template?.content ?? "{user} dice: {message}");
+  const [content, setContent] = useState(template?.content ?? t("templates_default_content"));
 
   const submit = () => {
     if (!name.trim() || !content.trim()) return;
@@ -133,15 +133,15 @@ function TemplateForm({ template, onSave, onCancel }: {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={3}
-          placeholder="{user} dice: {message}"
+          placeholder={t("templates_default_content")}
           className="input resize-none font-mono"
         />
       </div>
       <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setContent("{user} dice: {message}")} className="badge-muted hover:bg-border">
+        <button onClick={() => setContent(t("templates_default_content"))} className="badge-muted hover:bg-border">
           {t("templates_preset_default")}
         </button>
-        <button onClick={() => setContent("Mensaje de {user}: {message}")} className="badge-muted hover:bg-border">
+        <button onClick={() => setContent(t("templates_preset_msg_content"))} className="badge-muted hover:bg-border">
           {t("templates_preset_msg")}
         </button>
         <button onClick={() => setContent("{message}")} className="badge-muted hover:bg-border">
