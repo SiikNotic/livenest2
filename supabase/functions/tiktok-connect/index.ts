@@ -45,6 +45,32 @@ function clientIp(req: Request): string {
   return req.headers.get("x-real-ip") ?? "unknown";
 }
 
+// La API key de Euler Stream casi nunca cambia, pero antes se consultaba a
+// la base de datos en CADA conexión, bloqueando el WebSocket con el
+// navegador hasta que volvía ese round-trip. Se cachea en memoria del
+// proceso (sobrevive mientras la función siga "caliente" entre invocaciones)
+// con un TTL corto, así que solo la primera conexión de cada instancia paga
+// ese costo — el resto reutiliza la key sin ir a la base.
+let cachedApiKey: { value: string; fetchedAt: number } | null = null;
+const API_KEY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+async function getEulerStreamApiKey(
+  supabase: ReturnType<typeof createClient>
+): Promise<string | null> {
+  if (cachedApiKey && Date.now() - cachedApiKey.fetchedAt < API_KEY_CACHE_TTL_MS) {
+    return cachedApiKey.value;
+  }
+  const { data, error } = await supabase
+    .from("api_secrets")
+    .select("secret_value")
+    .eq("provider", "eulerstream")
+    .eq("key_name", "api_key")
+    .maybeSingle();
+  if (error || !data) return null;
+  cachedApiKey = { value: data.secret_value, fetchedAt: Date.now() };
+  return data.secret_value;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -78,26 +104,6 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false },
-  });
-
-  const { data: secretRow, error: secretErr } = await supabase
-    .from("api_secrets")
-    .select("secret_value")
-    .eq("provider", "eulerstream")
-    .eq("key_name", "api_key")
-    .maybeSingle();
-
-  if (secretErr || !secretRow) {
-    return new Response(
-      JSON.stringify({ error: "No se encontró la API key de Euler Stream." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  const apiKey = secretRow.secret_value;
-
   const ip = clientIp(req);
   if ((activeConnectionsByIp.get(ip) ?? 0) >= MAX_CONCURRENT_PER_IP) {
     return new Response(
@@ -106,13 +112,24 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const upstreamUrl = new URL("wss://ws.eulerstream.com");
-  upstreamUrl.searchParams.set("apiKey", apiKey);
-  upstreamUrl.searchParams.set("uniqueId", username);
-  upstreamUrl.searchParams.set("schemaVersion", "v2");
-  upstreamUrl.searchParams.set("features.bundleEvents", "true");
-  upstreamUrl.searchParams.set("features.normalizeUniqueId", "true");
-  upstreamUrl.searchParams.set("features.closeInactiveWebSocketAfter", "300");
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
+
+  // En caliente (key ya cacheada, el caso normal) esto resuelve al instante,
+  // sin ir a la base — el WebSocket con el navegador se abre sin ese
+  // round-trip de por medio. Solo la primera conexión de cada instancia (o
+  // cada 5 minutos, cuando vence el cache) paga el costo real de la consulta,
+  // igual que antes — y como sigue siendo `await` antes de aceptar el
+  // WebSocket, un error real de configuración (key faltante) se sigue
+  // reportando como un 500 normal en vez de abrir el socket para cerrarlo al toque.
+  const apiKey = await getEulerStreamApiKey(supabase);
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({ error: "No se encontró la API key de Euler Stream." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   let clientSocket: WebSocket;
   let response: Response;
@@ -154,6 +171,14 @@ Deno.serve(async (req: Request) => {
   };
 
   clientSocket.onopen = () => {
+    const upstreamUrl = new URL("wss://ws.eulerstream.com");
+    upstreamUrl.searchParams.set("apiKey", apiKey);
+    upstreamUrl.searchParams.set("uniqueId", username);
+    upstreamUrl.searchParams.set("schemaVersion", "v2");
+    upstreamUrl.searchParams.set("features.bundleEvents", "true");
+    upstreamUrl.searchParams.set("features.normalizeUniqueId", "true");
+    upstreamUrl.searchParams.set("features.closeInactiveWebSocketAfter", "300");
+
     try {
       upstreamSocket = new WebSocket(upstreamUrl.toString());
     } catch {
