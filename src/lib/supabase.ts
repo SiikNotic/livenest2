@@ -41,7 +41,7 @@ export type Settings = {
   notif_voice_share: boolean;
   notif_voice_sub: boolean;
   music_blocked_keywords: string;
-  voice_provider: "browser" | "edge" | "elevenlabs";
+  voice_provider: "browser" | "google" | "elevenlabs" | "inworld";
   voice_random: boolean;
   theme: "midnight" | "mono" | "neon" | "ios" | "android" | "aurora" | "sunset" | "ocean" | "violet" | "ember" | "candy" | "forest";
   created_at: string;

@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-export type VoiceProvider = "browser" | "edge" | "elevenlabs";
+export type VoiceProvider = "browser" | "google" | "elevenlabs" | "inworld";
 
 export type SpeakOptions = {
   voiceId?: string;
@@ -15,59 +15,26 @@ export type VoiceInfo = {
   name: string;
   lang: string;
   gender?: "male" | "female" | "neutral";
-  source: "browser" | "edge" | "elevenlabs";
+  source: "browser" | "google" | "elevenlabs" | "inworld";
 };
 
-// Edge TTS (Microsoft) voice catalog — free, no API key, natural neural voices.
+// Google Translate TTS — free, no API key, no llamada por WebSocket (a
+// diferencia de Edge TTS, que dependía de un token/firma no oficiales de
+// Microsoft y dejó de funcionar cuando lo invalidaron sin aviso). La
+// contrapartida: una sola voz "neutra" por idioma, sin elegir género ni
+// nombre como con Edge — Google no ofrece esa variedad.
 // Routed through the tts-proxy Supabase Edge Function to avoid CORS issues.
-// Full voice list: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support
-const EDGE_VOICE_CATALOG: VoiceInfo[] = [
-  // Spanish (Spain)
-  { id: "es-ES-ElviraNeural", name: "Elvira (España)", lang: "es-ES", gender: "female", source: "edge" },
-  { id: "es-ES-AlvaroNeural", name: "Álvaro (España)", lang: "es-ES", gender: "male", source: "edge" },
-  { id: "es-ES-ManuelEsCUNeural", name: "Manuel (España CU)", lang: "es-ES", gender: "male", source: "edge" },
-  // Spanish (Latin America)
-  { id: "es-US-PalomaNeural", name: "Paloma (US Latin)", lang: "es-US", gender: "female", source: "edge" },
-  { id: "es-US-AlonsoNeural", name: "Alonso (US Latin)", lang: "es-US", gender: "male", source: "edge" },
-  { id: "es-MX-DaliaNeural", name: "Dalia (México)", lang: "es-MX", gender: "female", source: "edge" },
-  { id: "es-MX-JorgeNeural", name: "Jorge (México)", lang: "es-MX", gender: "male", source: "edge" },
-  { id: "es-AR-ElenaNeural", name: "Elena (Argentina)", lang: "es-AR", gender: "female", source: "edge" },
-  { id: "es-AR-TomasNeural", name: "Tomás (Argentina)", lang: "es-AR", gender: "male", source: "edge" },
-  { id: "es-CO-SalomeNeural", name: "Salomé (Colombia)", lang: "es-CO", gender: "female", source: "edge" },
-  { id: "es-CO-GonzaloNeural", name: "Gonzalo (Colombia)", lang: "es-CO", gender: "male", source: "edge" },
-  { id: "es-CL-ConstanzaNeural", name: "Constanza (Chile)", lang: "es-CL", gender: "female", source: "edge" },
-  { id: "es-CL-EmilioNeural", name: "Emilio (Chile)", lang: "es-CL", gender: "male", source: "edge" },
-  { id: "es-PE-CamilaNeural", name: "Camila (Perú)", lang: "es-PE", gender: "female", source: "edge" },
-  { id: "es-PE-AlexNeural", name: "Alex (Perú)", lang: "es-PE", gender: "male", source: "edge" },
-  { id: "es-VE-PaolaNeural", name: "Paola (Venezuela)", lang: "es-VE", gender: "female", source: "edge" },
-  { id: "es-VE-SebastianNeural", name: "Sebastián (Venezuela)", lang: "es-VE", gender: "male", source: "edge" },
-  // English
-  { id: "en-US-AriaNeural", name: "Aria (US)", lang: "en-US", gender: "female", source: "edge" },
-  { id: "en-US-JennyNeural", name: "Jenny (US)", lang: "en-US", gender: "female", source: "edge" },
-  { id: "en-US-MichelleNeural", name: "Michelle (US)", lang: "en-US", gender: "female", source: "edge" },
-  { id: "en-US-ChristopherNeural", name: "Christopher (US)", lang: "en-US", gender: "male", source: "edge" },
-  { id: "en-US-EricNeural", name: "Eric (US)", lang: "en-US", gender: "male", source: "edge" },
-  { id: "en-US-GuyNeural", name: "Guy (US)", lang: "en-US", gender: "male", source: "edge" },
-  { id: "en-US-RogerNeural", name: "Roger (US)", lang: "en-US", gender: "male", source: "edge" },
-  { id: "en-GB-SoniaNeural", name: "Sonia (UK)", lang: "en-GB", gender: "female", source: "edge" },
-  { id: "en-GB-LibbyNeural", name: "Libby (UK)", lang: "en-GB", gender: "female", source: "edge" },
-  { id: "en-GB-RyanNeural", name: "Ryan (UK)", lang: "en-GB", gender: "male", source: "edge" },
-  { id: "en-GB-ThomasNeural", name: "Thomas (UK)", lang: "en-GB", gender: "male", source: "edge" },
-  { id: "en-AU-NatashaNeural", name: "Natasha (AU)", lang: "en-AU", gender: "female", source: "edge" },
-  { id: "en-AU-WilliamNeural", name: "William (AU)", lang: "en-AU", gender: "male", source: "edge" },
-  // Other popular
-  { id: "fr-FR-DeniseNeural", name: "Denise (FR)", lang: "fr-FR", gender: "female", source: "edge" },
-  { id: "fr-FR-HenriNeural", name: "Henri (FR)", lang: "fr-FR", gender: "male", source: "edge" },
-  { id: "de-DE-KatjaNeural", name: "Katja (DE)", lang: "de-DE", gender: "female", source: "edge" },
-  { id: "de-DE-ConradNeural", name: "Conrad (DE)", lang: "de-DE", gender: "male", source: "edge" },
-  { id: "it-IT-ElsaNeural", name: "Elsa (IT)", lang: "it-IT", gender: "female", source: "edge" },
-  { id: "it-IT-DiegoNeural", name: "Diego (IT)", lang: "it-IT", gender: "male", source: "edge" },
-  { id: "pt-BR-FranciscaNeural", name: "Francisca (BR)", lang: "pt-BR", gender: "female", source: "edge" },
-  { id: "pt-BR-AntonioNeural", name: "Antonio (BR)", lang: "pt-BR", gender: "male", source: "edge" },
-  { id: "ja-JP-NanamiNeural", name: "Nanami (JP)", lang: "ja-JP", gender: "female", source: "edge" },
-  { id: "ja-JP-KeitaNeural", name: "Keita (JP)", lang: "ja-JP", gender: "male", source: "edge" },
-  { id: "ko-KR-SunHiNeural", name: "Sun-Hi (KR)", lang: "ko-KR", gender: "female", source: "edge" },
-  { id: "ko-KR-InJoonNeural", name: "InJoon (KR)", lang: "ko-KR", gender: "male", source: "edge" },
+// Solo códigos de idioma base (sin región) — es el formato que el
+// endpoint no oficial de Google realmente reconoce de forma fiable.
+const GOOGLE_VOICE_CATALOG: VoiceInfo[] = [
+  { id: "es", name: "Español", lang: "es-ES", gender: "neutral", source: "google" },
+  { id: "en", name: "English", lang: "en-US", gender: "neutral", source: "google" },
+  { id: "pt", name: "Português", lang: "pt-BR", gender: "neutral", source: "google" },
+  { id: "fr", name: "Français", lang: "fr-FR", gender: "neutral", source: "google" },
+  { id: "de", name: "Deutsch", lang: "de-DE", gender: "neutral", source: "google" },
+  { id: "it", name: "Italiano", lang: "it-IT", gender: "neutral", source: "google" },
+  { id: "ja", name: "日本語", lang: "ja-JP", gender: "neutral", source: "google" },
+  { id: "ko", name: "한국어", lang: "ko-KR", gender: "neutral", source: "google" },
 ];
 
 // Small fallback shown only until the real account voice list loads (or if
@@ -77,6 +44,28 @@ const ELEVENLABS_VOICE_CATALOG: VoiceInfo[] = [
   { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", lang: "multi", gender: "female", source: "elevenlabs" },
   { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", lang: "multi", gender: "male", source: "elevenlabs" },
 ];
+
+// Small fallback shown only until the real account voice list loads (or if
+// it fails to load). The real, always-up-to-date list is fetched live from
+// the Inworld account via VoiceManager.refreshInworldVoices().
+const INWORLD_VOICE_CATALOG: VoiceInfo[] = [
+  { id: "Ashley", name: "Ashley", lang: "en", gender: "female", source: "inworld" },
+  { id: "Craig", name: "Craig", lang: "en", gender: "male", source: "inworld" },
+];
+
+// Inworld etiqueta cada voz con los idiomas que soporta (ej. ["en", "es"]
+// o ["en-US", "es-ES"]) — se usa el primero que reconozcamos para filtrar
+// por idioma en la UI; si no viene nada, se muestra en ambos filtros.
+function mapInworldLang(languages: unknown): string {
+  if (!Array.isArray(languages) || languages.length === 0) return "multi";
+  for (const l of languages) {
+    if (typeof l !== "string") continue;
+    const lower = l.toLowerCase();
+    if (lower.startsWith("es")) return "es";
+    if (lower.startsWith("en")) return "en";
+  }
+  return "multi";
+}
 
 function mapElevenLabsGender(label: string | null | undefined, name: string): "male" | "female" | "neutral" {
   const l = (label ?? "").toLowerCase();
@@ -153,7 +142,7 @@ class VoiceManager {
   private currentAudio: HTMLAudioElement | null = null;
 
   /**
-   * Edge TTS and ElevenLabs are member-only and gated server-side by the
+   * Google TTS, ElevenLabs and Inworld are member-only and gated server-side by the
    * caller's identity — so we must send the user's real session token, not
    * just the public anon key, or the server can't tell who's asking.
    */
@@ -165,6 +154,10 @@ class VoiceManager {
   private elevenlabsLoading = false;
   private elevenlabsError: string | null = null;
   private elevenlabsLoaded = false;
+  private inworldVoices: VoiceInfo[] = INWORLD_VOICE_CATALOG;
+  private inworldLoading = false;
+  private inworldError: string | null = null;
+  private inworldLoaded = false;
 
   constructor() {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -196,8 +189,8 @@ class VoiceManager {
     }));
   }
 
-  getEdgeVoices(): VoiceInfo[] {
-    return EDGE_VOICE_CATALOG;
+  getGoogleVoices(): VoiceInfo[] {
+    return GOOGLE_VOICE_CATALOG;
   }
 
   getElevenLabsVoices(): VoiceInfo[] {
@@ -277,11 +270,88 @@ class VoiceManager {
     }
   }
 
+  getInworldVoices(): VoiceInfo[] {
+    return this.inworldVoices;
+  }
+
+  get inworldVoicesLoading(): boolean {
+    return this.inworldLoading;
+  }
+
+  get inworldVoicesError(): string | null {
+    return this.inworldError;
+  }
+
+  /**
+   * Fetches the real, current list of voices from the Inworld account,
+   * replacing the small hardcoded fallback list. Safe to call repeatedly —
+   * only re-fetches if not already loaded/loading, unless `force` is set.
+   */
+  async refreshInworldVoices(force = false): Promise<void> {
+    if (this.inworldLoading) return;
+    if (this.inworldLoaded && !force) return;
+
+    this.inworldLoading = true;
+    this.inworldError = null;
+    this.listeners.forEach((l) => l());
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const proxyUrl = `${supabaseUrl}/functions/v1/tts-proxy`;
+      const bearer = await this.authBearer();
+
+      const res = await fetch(proxyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${bearer}`,
+        },
+        body: JSON.stringify({ action: "list-voices", provider: "inworld" }),
+      });
+
+      if (res.status === 403) {
+        throw new Error("Inworld es solo para miembros. Hazte miembro para desbloquearlo.");
+      }
+
+      if (!res.ok) {
+        let errBody: string;
+        try {
+          const errData = await res.json();
+          errBody = errData?.error ?? JSON.stringify(errData);
+        } catch {
+          errBody = await res.text().catch(() => "(respuesta vacía)");
+        }
+        throw new Error(`HTTP ${res.status} — ${errBody}`);
+      }
+
+      const data = await res.json();
+      const rawVoices: any[] = Array.isArray(data?.voices) ? data.voices : [];
+
+      if (rawVoices.length > 0) {
+        this.inworldVoices = rawVoices.map((v) => ({
+          id: v.id,
+          name: v.name ?? v.id,
+          lang: mapInworldLang(v.languages),
+          gender: v.gender === "male" || v.gender === "female" ? v.gender : inferGender(v.name ?? v.id),
+          source: "inworld" as const,
+        }));
+      }
+      this.inworldLoaded = true;
+    } catch (err) {
+      this.inworldError = err instanceof Error ? err.message : "No se pudieron cargar las voces de Inworld";
+      // Keep whatever list we already had (fallback or previous successful fetch)
+    } finally {
+      this.inworldLoading = false;
+      this.listeners.forEach((l) => l());
+    }
+  }
+
   getVoicesForProvider(provider: VoiceProvider): VoiceInfo[] {
     switch (provider) {
       case "browser": return this.getBrowserVoices();
-      case "edge": return this.getEdgeVoices();
+      case "google": return this.getGoogleVoices();
       case "elevenlabs": return this.getElevenLabsVoices();
+      case "inworld": return this.getInworldVoices();
     }
   }
 
@@ -310,8 +380,10 @@ class VoiceManager {
 
     if (provider === "browser") {
       return this.speakBrowser(clean, opts);
-    } else if (provider === "edge") {
-      return this.speakEdge(clean, opts);
+    } else if (provider === "google") {
+      return this.speakGoogle(clean, opts);
+    } else if (provider === "inworld") {
+      return this.speakInworld(clean, opts);
     } else {
       return this.speakElevenLabs(clean, opts);
     }
@@ -355,14 +427,18 @@ class VoiceManager {
   }
 
   /**
-   * Edge TTS — Microsoft's free neural TTS, no API key required.
+   * Google Translate TTS — gratis, sin API key. Reemplaza a Edge TTS, que
+   * dependía de un token/firma no oficiales de Microsoft y dejó de
+   * funcionar cuando Microsoft lo invalidó. Contrapartida: una sola voz
+   * por idioma (voiceId aquí es un código de idioma como "es", no el
+   * nombre de una voz), y sin control de tono en el servidor — el tono se
+   * queda fijo, y la velocidad se aplica en el cliente vía playbackRate.
    * Routed through the tts-proxy Supabase Edge Function (Deno) to avoid
-   * browser CORS restrictions and WebSocket limitations.
+   * browser CORS restrictions.
    */
-  private async speakEdge(text: string, opts: SpeakOptions): Promise<void> {
-    const voiceId = opts.voiceId ?? "es-ES-ElviraNeural";
+  private async speakGoogle(text: string, opts: SpeakOptions): Promise<void> {
+    const voiceId = opts.voiceId ?? "es";
     const rate = opts.rate ?? 1;
-    const pitch = opts.pitch ?? 1;
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const proxyUrl = `${supabaseUrl}/functions/v1/tts-proxy`;
@@ -377,21 +453,19 @@ class VoiceManager {
           Authorization: `Bearer ${bearer}`,
         },
         body: JSON.stringify({
-          provider: "edge",
+          provider: "google",
           text: text.slice(0, 1000),
           voiceId,
-          rate,
-          pitch,
         }),
       });
     } catch (err) {
       throw new Error(
-        `Edge TTS: no se pudo conectar con el servidor. ${err instanceof Error ? err.message : ""}`
+        `Voz gratuita: no se pudo conectar con el servidor. ${err instanceof Error ? err.message : ""}`
       );
     }
 
     if (res.status === 403) {
-      throw new Error("Edge TTS es solo para miembros. Hazte miembro para desbloquearlo.");
+      throw new Error("Esta voz es solo para miembros. Hazte miembro para desbloquearla.");
     }
 
     if (!res.ok) {
@@ -408,19 +482,22 @@ class VoiceManager {
       }
       const statusText = res.statusText ? ` ${res.statusText}` : "";
       throw new Error(
-        `Edge TTS: HTTP ${res.status}${statusText} — ${errBody}`
+        `Voz gratuita: HTTP ${res.status}${statusText} — ${errBody}`
       );
     }
 
     const audioBlob = await res.blob();
     if (audioBlob.size === 0) {
-      throw new Error("Edge TTS: el servidor devolvió audio vacío");
+      throw new Error("Voz gratuita: el servidor devolvió audio vacío");
     }
 
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
     audio.volume = opts.volume ?? 1;
-    audio.playbackRate = 1;
+    // Google no deja pedir una velocidad al servidor (a diferencia de Edge,
+    // que la codificaba en el SSML) — se aproxima ajustando la reproducción
+    // en el cliente en vez de perder el control por completo.
+    audio.playbackRate = Math.max(0.5, Math.min(2, rate));
     this.currentAudio = audio;
 
     return new Promise((resolve) => {
@@ -487,6 +564,71 @@ class VoiceManager {
     const audioBlob = await res.blob();
     if (audioBlob.size === 0) {
       throw new Error("ElevenLabs: el servidor devolvió audio vacío");
+    }
+
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    audio.volume = Math.max(0, Math.min(1, volume));
+    this.currentAudio = audio;
+
+    return new Promise<void>((resolve) => {
+      audio.onended = () => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); };
+      audio.play().catch(() => { URL.revokeObjectURL(audioUrl); this.currentAudio = null; resolve(); });
+    });
+  }
+
+  private async speakInworld(text: string, opts: SpeakOptions): Promise<void> {
+    const voiceId = opts.voiceId || "Ashley";
+    const volume = opts.volume ?? 1;
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const proxyUrl = `${supabaseUrl}/functions/v1/tts-proxy`;
+    const bearer = await this.authBearer();
+
+    let res: Response;
+    try {
+      res = await fetch(proxyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${bearer}`,
+        },
+        body: JSON.stringify({
+          provider: "inworld",
+          text: text.slice(0, 5000),
+          voiceId,
+          modelId: "inworld-tts-1",
+        }),
+      });
+    } catch (err) {
+      throw new Error(
+        `Inworld: no se pudo conectar con el servidor. ${err instanceof Error ? err.message : ""}`
+      );
+    }
+
+    if (res.status === 403) {
+      throw new Error("Inworld es solo para miembros. Hazte miembro para desbloquearlo.");
+    }
+
+    if (!res.ok) {
+      let errBody: string;
+      try {
+        const errData = await res.json();
+        errBody = errData?.error ?? JSON.stringify(errData);
+      } catch {
+        try {
+          errBody = await res.text();
+        } catch {
+          errBody = "(respuesta vacía)";
+        }
+      }
+      throw new Error(`Inworld: HTTP ${res.status} — ${errBody}`);
+    }
+
+    const audioBlob = await res.blob();
+    if (audioBlob.size === 0) {
+      throw new Error("Inworld: el servidor devolvió audio vacío");
     }
 
     const audioUrl = URL.createObjectURL(audioBlob);
