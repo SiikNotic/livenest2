@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useI18n } from "../lib/i18n";
 
 /*
 Sin esto, cualquier error que ocurra durante el render desmonta TODO el
@@ -28,6 +29,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.error) {
+      // useI18n es un store de Zustand, no un hook de React en el sentido
+      // estricto — se puede leer con getState() incluso desde un componente
+      // de clase (que no puede usar hooks). No hace falta reactividad acá:
+      // esta pantalla ya está mostrando un idioma fijo desde que el error
+      // ocurrió.
+      const { t } = useI18n.getState();
       return (
         <div className="min-h-screen flex items-center justify-center p-6 bg-bg text-text">
           <div className="max-w-sm w-full text-center space-y-4">
@@ -35,13 +42,13 @@ export class ErrorBoundary extends Component<Props, State> {
               <AlertTriangle className="w-7 h-7 text-error-400" />
             </div>
             <div>
-              <h1 className="text-base font-bold">Algo salió mal</h1>
+              <h1 className="text-base font-bold">{t("errorboundary_title")}</h1>
               <p className="text-sm text-muted mt-1">
-                LiveNest encontró un error inesperado. Recarga la página para continuar.
+                {t("errorboundary_desc")}
               </p>
             </div>
             <details className="text-left text-xs text-muted-soft bg-bg-soft rounded-xl p-3 border border-border whitespace-pre-wrap break-words">
-              <summary className="cursor-pointer font-semibold text-muted mb-1">Detalles técnicos</summary>
+              <summary className="cursor-pointer font-semibold text-muted mb-1">{t("errorboundary_details")}</summary>
               {this.state.error.message}
             </details>
             <button
@@ -49,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
               className="btn-primary w-full justify-center"
             >
               <RefreshCw className="w-4 h-4" />
-              Recargar
+              {t("errorboundary_reload")}
             </button>
           </div>
         </div>

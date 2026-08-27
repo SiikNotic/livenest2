@@ -200,7 +200,7 @@ export function Header({ active, onChange }: Props) {
                 className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-bg-soft border border-border text-xs font-semibold hover:bg-bg-hover transition-colors card-press"
               >
                 {isAdmin ? <Shield className="w-3.5 h-3.5 text-error-400" /> : <Crown className="w-3.5 h-3.5 text-primary" />}
-                <span>{isAdmin ? "Admin" : "Cuenta"}</span>
+                <span>{isAdmin ? "Admin" : t("nav_account")}</span>
               </button>
             ) : null}
             <button
@@ -214,7 +214,7 @@ export function Header({ active, onChange }: Props) {
               {user ? (
                 <>
                   {isAdmin ? <Shield className="w-3.5 h-3.5 text-error-400" /> : <Crown className="w-3.5 h-3.5 text-primary" />}
-                  <span className="hidden sm:inline">{isAdmin ? "Admin" : "Cuenta"}</span>
+                  <span className="hidden sm:inline">{isAdmin ? "Admin" : t("nav_account")}</span>
                 </>
               ) : (
                 <>
@@ -268,7 +268,7 @@ export function Header({ active, onChange }: Props) {
             </div>
 
             {/* Lista con scroll */}
-            <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+            <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-0.5">
               {MENU_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const isActive = active === item.id;
@@ -362,12 +362,12 @@ export function Header({ active, onChange }: Props) {
                   {user ? (
                     <>
                       <p className="text-xs font-bold truncate">
-                        {isAdmin ? "Administrador" : profile?.username ? `@${profile.username}` : "Mi cuenta"}
+                        {isAdmin ? t("role_admin") : profile?.username ? `@${profile.username}` : t("tab_account")}
                       </p>
                       <p className="text-[11px] text-muted truncate">{profile?.email ?? user.email}</p>
                     </>
                   ) : (
-                    <p className="text-xs font-bold">{lang === "es" ? "Entrar" : "Sign in"}</p>
+                    <p className="text-xs font-bold">{t("nav_signin")}</p>
                   )}
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" />
