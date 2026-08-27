@@ -1,0 +1,60 @@
+LiveNest 2 Sound Pack v1 — LICENSES / SOURCES
+================================================
+
+IMPORTANT — how this pack was made
+-----------------------------------
+This pack contains ONLY 100% original audio, synthesized from scratch by
+code (sine/square/sawtooth oscillators, filtered white noise, and ADSR
+envelopes — no samples, no recordings, no third-party sound library).
+
+Nothing here was downloaded from Freesound, Pixabay, Zapsplat,
+OpenGameArt, Kenney.nl, Streamlabs, StreamElements, or any other
+external source. The environment this pack was generated in does not
+have general internet access (only a small allowlist for package
+registries), so no third-party asset could be fetched, verified, or
+included — everything below was generated procedurally instead.
+
+License
+-------
+Every file in sounds/ is an original work created for this project.
+It is released to you (the LiveNest 2 project owner) with no
+restrictions: use, modify, and redistribute freely, commercially or
+not, with or without attribution. No third-party rights are involved
+because no third-party material was used.
+
+Generation method (for reference / reproducibility)
+-----------------------------------------------------
+- Sample rate: 44.1kHz, mono, 16-bit.
+- Tools: Python + NumPy/SciPy (oscillators, Butterworth band/low/high-pass
+  filters, ADSR envelopes, simple multi-tap delay for the "epic" tail)
+  and lameenc for the .mp3 files.
+- Each file is peak-normalized (~-1.5 dBFS target) through a gentle
+  tanh soft-limiter, so the pack has consistent loudness and no hard
+  clipping.
+- Categories map 1:1 to the file name prefix (see sounds/_manifest.tsv
+  for the full list with per-file duration).
+
+Known limitation
+-----------------
+Being procedurally synthesized rather than professionally recorded/
+produced, this pack leans more "chiptune / retro SFX" than the
+polished, sample-based feel of libraries like Streamlabs' or
+StreamElements' alert packs. If you want that level of polish, the
+following are genuinely free, CC0-licensed asset packs you can
+download yourself and drop alongside this pack (verify the license on
+each page before use, licenses can change):
+
+  - Kenney.nl — "Interface Sounds", "UI Audio", "Impact Sounds",
+    "Casino Audio", "Sci-Fi Sounds", "Digital Audio" packs.
+    https://kenney.nl/assets (filter by "Audio")
+    License: CC0 1.0 (public domain), stated on every Kenney asset page.
+
+  - Freesound.org — filter search results by "Creative Commons 0".
+    License varies per sound — read each sound's license box.
+
+  - Pixabay — Audio section, filtered to their own royalty-free
+    license (free for commercial use, no attribution required).
+
+None of those were included here — this file only documents what
+IS in this pack (the synthesized files), plus where to look if you
+want to add more later.
