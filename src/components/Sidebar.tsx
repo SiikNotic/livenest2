@@ -53,7 +53,7 @@ export function Sidebar({ active, onChange }: Props) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 space-y-1">
+      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-3 py-4 space-y-1">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
@@ -111,7 +111,7 @@ export function Sidebar({ active, onChange }: Props) {
           <div className="flex-1 min-w-0 text-left">
             <p className="text-xs font-bold truncate">{profile?.username ? `@${profile.username}` : profile?.email ?? user.email}</p>
             <p className="text-[10px] text-muted">
-              {isAdmin ? "Administrador" : profile?.rank && profile.rank !== "none" ? profile.rank : "Cuenta"}
+              {isAdmin ? t("role_admin") : profile?.rank && profile.rank !== "none" ? profile.rank : t("nav_account")}
             </p>
           </div>
         </button>
