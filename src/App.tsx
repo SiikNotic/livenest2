@@ -149,6 +149,20 @@ export default function App() {
     );
   }
 
+  // Sin cuenta, no hay nada que mostrar — todas las pestañas dependen de
+  // datos por usuario (settings, filtros, plantillas...), así que antes un
+  // visitante sin loguearse podía abrir el menú y navegar a Música/Alertas/
+  // Voces igual, y esas vistas se quedaban en un loader infinito porque
+  // loadSettings()/loadFilters()/etc. nunca corren sin sesión. Ahora se
+  // pide iniciar sesión o registrarse antes de ver cualquier otra cosa.
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <AuthView />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex relative">
       <div className="fixed overflow-hidden pointer-events-none" style={{ left: -9999, top: -9999, width: 200, height: 200 }} aria-hidden>
@@ -161,8 +175,9 @@ export default function App() {
         <Header active={tab} onChange={setTab} />
 
         {tab === "account" ? (
+          // Llegar hasta acá ya implica user !== null (ver el gate de arriba).
           <main className="flex-1 overflow-y-auto">
-            {user ? <UserPanelView /> : <AuthView />}
+            <UserPanelView />
           </main>
         ) : tab === "admin" && isAdmin ? (
           <main className="flex-1 px-4 pt-2 pb-6 lg:px-6 overflow-y-auto">

@@ -2,10 +2,10 @@ import { useState, useCallback } from "react";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { MEMBERSHIP_PRICE_ID, MEMBERSHIP_PRICE_LABEL, MEMBERSHIP_DURATION } from "../lib/stripeConfig";
-import { KeyRound, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, Crown, Calendar, Sparkles, LogOut, CreditCard } from "lucide-react";
+import { KeyRound, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, Crown, Calendar, Sparkles, LogOut, CreditCard, User as UserIcon } from "lucide-react";
 
 export function UserPanelView() {
-  const { user, profile, license, refreshLicense, signOut } = useAuth();
+  const { user, profile, license, refreshLicense, signOut, setUsername, refreshProfile } = useAuth();
   const [keyInput, setKeyInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -14,6 +14,25 @@ export function UserPanelView() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelInfo, setCancelInfo] = useState<string | null>(null);
+
+  // Cuentas que llegaron sin username (registradas antes de que este campo
+  // existiera, o entraron con Google) — se les pide una sola vez acá.
+  const [usernameInput, setUsernameInput] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameLoading, setUsernameLoading] = useState(false);
+
+  const handleSetUsername = useCallback(async () => {
+    setUsernameError(null);
+    setUsernameLoading(true);
+    const { error } = await setUsername(usernameInput);
+    if (error) {
+      setUsernameError(error);
+      setUsernameLoading(false);
+      return;
+    }
+    await refreshProfile();
+    setUsernameLoading(false);
+  }, [usernameInput, setUsername, refreshProfile]);
 
   const callEdgeFunction = useCallback(async (fnName: string, body: Record<string, unknown> = {}) => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -116,9 +135,9 @@ export function UserPanelView() {
             <Crown className="w-6 h-6 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold truncate">{profile?.email || user?.email}</p>
-            <p className="text-xs text-muted">
-              {profile?.role === "admin" ? "Administrador" : "Usuario"}
+            <p className="text-sm font-bold truncate">{profile?.username ? `@${profile.username}` : profile?.email || user?.email}</p>
+            <p className="text-xs text-muted truncate">
+              {profile?.username ? (profile?.email || user?.email) : profile?.role === "admin" ? "Administrador" : "Usuario"}
             </p>
           </div>
           <button
@@ -129,6 +148,36 @@ export function UserPanelView() {
             Salir
           </button>
         </div>
+
+        {!profile?.username && (
+          <div className="mt-4 pt-4 border-t border-border space-y-2">
+            <p className="text-xs font-semibold text-text-soft flex items-center gap-1.5">
+              <UserIcon className="w-3.5 h-3.5 text-primary" /> Elige un nombre de usuario
+            </p>
+            <p className="text-[11px] text-muted">Así te va a ver el resto de la app.</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                minLength={3}
+                maxLength={24}
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="tu_usuario"
+                className="flex-1 px-3 py-2 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
+              />
+              <button
+                onClick={handleSetUsername}
+                disabled={usernameLoading || usernameInput.trim().length < 3}
+                className="btn-primary text-xs px-4 disabled:opacity-50"
+              >
+                {usernameLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Guardar"}
+              </button>
+            </div>
+            {usernameError && (
+              <p className="text-[11px] text-error-400">{usernameError}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* License status */}

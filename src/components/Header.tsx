@@ -341,7 +341,7 @@ export function Header({ active, onChange }: Props) {
                     />
                   ) : (
                     <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
-                      {(profile?.email ?? user.email ?? "?").slice(0, 2).toUpperCase()}
+                      {(profile?.username ?? profile?.email ?? user.email ?? "?").slice(0, 2).toUpperCase()}
                     </div>
                   )
                 ) : (
@@ -352,7 +352,9 @@ export function Header({ active, onChange }: Props) {
                 <div className="flex-1 min-w-0 text-left">
                   {user ? (
                     <>
-                      <p className="text-xs font-bold truncate">{isAdmin ? "Administrador" : "Mi cuenta"}</p>
+                      <p className="text-xs font-bold truncate">
+                        {isAdmin ? "Administrador" : profile?.username ? `@${profile.username}` : "Mi cuenta"}
+                      </p>
                       <p className="text-[11px] text-muted truncate">{profile?.email ?? user.email}</p>
                     </>
                   ) : (

@@ -99,7 +99,7 @@ export function Sidebar({ active, onChange }: Props) {
             {isAdmin ? <Shield className="w-4 h-4 text-error-400" /> : <Crown className="w-4 h-4 text-primary" />}
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-xs font-bold truncate">{profile?.email ?? user.email}</p>
+            <p className="text-xs font-bold truncate">{profile?.username ? `@${profile.username}` : profile?.email ?? user.email}</p>
             <p className="text-[10px] text-muted">
               {isAdmin ? "Administrador" : profile?.rank && profile.rank !== "none" ? profile.rank : "Cuenta"}
             </p>
