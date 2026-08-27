@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "../lib/auth";
+import { useI18n, type TranslationKey } from "../lib/i18n";
 import { supabase, type Profile, type LicenseKey, type UserLicense, type UserRank, type RankPermissions } from "../lib/supabase";
 import {
   Shield, Users, KeyRound, Plus, Trash2, Copy, Check, Loader2, AlertCircle,
@@ -9,7 +10,10 @@ import {
 
 type AdminTab = "users" | "keys" | "licenses" | "permissions";
 
-const RANK_LABEL: Record<UserRank, string> = { owner: "Owner", staff: "Staff", none: "Ninguno" };
+// Owner/Staff son nombres propios del rango — no se traducen, solo "Ninguno"/"None".
+function rankLabel(t: (key: TranslationKey) => string, r: UserRank): string {
+  return r === "owner" ? "Owner" : r === "staff" ? "Staff" : t("admin_rank_none");
+}
 const RANK_STYLE: Record<UserRank, string> = {
   owner: "bg-accent/15 text-accent",
   staff: "bg-primary/15 text-primary",
@@ -18,6 +22,7 @@ const RANK_STYLE: Record<UserRank, string> = {
 
 export function AdminView() {
   const { profile, signOut, isOwner } = useAuth();
+  const { t, lang } = useI18n();
   const [tab, setTab] = useState<AdminTab>("users");
   const [users, setUsers] = useState<Profile[]>([]);
   const [keys, setKeys] = useState<LicenseKey[]>([]);
@@ -116,7 +121,7 @@ export function AdminView() {
     setPermError(null);
     const { error } = await supabase.rpc("admin_set_ban_status", { p_user_id: userId, p_banned: banned });
     if (error) {
-      setPermError("No tienes permiso para realizar esta acción.");
+      setPermError(t("admin_err_no_permission_action"));
       return;
     }
     await loadData();
@@ -127,7 +132,7 @@ export function AdminView() {
     setPermError(null);
     const { error } = await supabase.rpc("admin_set_rank", { p_user_id: userId, p_rank: rank });
     if (error) {
-      setPermError("No tienes permiso para cambiar el rango.");
+      setPermError(t("admin_err_no_permission_rank"));
       return;
     }
     await loadData();
@@ -138,7 +143,7 @@ export function AdminView() {
     setPermError(null);
     const { error } = await supabase.rpc("admin_set_staff_permission", { p_key: key, p_value: value });
     if (error) {
-      setPermError("No tienes permiso para modificar los permisos.");
+      setPermError(t("admin_err_no_permission_perms"));
       return;
     }
     await loadData();
@@ -151,7 +156,7 @@ export function AdminView() {
       headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
     });
     if (error) {
-      setPermError("No se pudo borrar la cuenta: solo el Owner puede hacerlo.");
+      setPermError(t("admin_err_delete_account"));
       return;
     }
     setSelectedUser(null);
@@ -159,9 +164,14 @@ export function AdminView() {
   };
 
   const fmtDate = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+    iso ? new Date(iso).toLocaleDateString(lang === "en" ? "en-US" : "es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
 
-  const labelMap: Record<string, string> = { "7": "7 días", "30": "30 días", "365": "1 año", lifetime: "De por vida" };
+  const labelMap: Record<string, string> = {
+    "7": t("admin_duration_7"),
+    "30": t("admin_duration_30"),
+    "365": t("admin_duration_365"),
+    lifetime: t("admin_duration_lifetime"),
+  };
 
   return (
     <div className="max-w-4xl mx-auto w-full space-y-5">
@@ -172,7 +182,7 @@ export function AdminView() {
             <Shield className="w-5 h-5 text-error-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-base font-bold">Panel de administración</h1>
+            <h1 className="text-base font-bold">{t("admin_panel_title")}</h1>
             <p className="text-xs text-muted truncate">{profile?.username ? `@${profile.username}` : profile?.email}</p>
           </div>
           <button
@@ -180,7 +190,7 @@ export function AdminView() {
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-bg-soft border border-border text-xs font-semibold text-muted hover:text-error-400 transition-colors flex-shrink-0"
           >
             <LogOut className="w-3.5 h-3.5" />
-            Salir
+            {t("logout")}
           </button>
         </div>
       </div>
@@ -191,24 +201,24 @@ export function AdminView() {
       {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
         {([
-          { id: "users", label: "Usuarios", icon: Users },
-          { id: "keys", label: "Claves", icon: KeyRound },
-          { id: "licenses", label: "Licencias", icon: Crown },
-          ...(isOwner ? [{ id: "permissions" as const, label: "Permisos", icon: SlidersHorizontal }] : []),
-        ] as { id: AdminTab; label: string; icon: typeof Users }[]).map((t) => {
-          const Icon = t.icon;
+          { id: "users", label: t("admin_tab_users"), icon: Users },
+          { id: "keys", label: t("admin_tab_keys"), icon: KeyRound },
+          { id: "licenses", label: t("admin_tab_licenses"), icon: Crown },
+          ...(isOwner ? [{ id: "permissions" as const, label: t("admin_tab_permissions"), icon: SlidersHorizontal }] : []),
+        ] as { id: AdminTab; label: string; icon: typeof Users }[]).map((tabItem) => {
+          const Icon = tabItem.icon;
           return (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tabItem.id}
+              onClick={() => setTab(tabItem.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all card-press flex-shrink-0 ${
-                tab === t.id
+                tab === tabItem.id
                   ? "bg-primary/15 text-primary border border-primary/30"
                   : "bg-bg-soft text-muted border border-border hover:text-text"
               }`}
             >
               <Icon className="w-4 h-4" />
-              {t.label}
+              {tabItem.label}
             </button>
           );
         })}
@@ -247,17 +257,17 @@ export function AdminView() {
                     <div className="hidden sm:flex flex-wrap items-center justify-end gap-1.5 flex-shrink-0 max-w-[45%]">
                       {u.rank !== "none" && (
                         <span className={`text-[10px] font-bold px-2 py-1 rounded-lg whitespace-nowrap ${RANK_STYLE[u.rank]}`}>
-                          {RANK_LABEL[u.rank]}
+                          {rankLabel(t, u.rank)}
                         </span>
                       )}
                       {isMember && (
                         <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-primary/15 text-primary flex items-center gap-1 whitespace-nowrap">
-                          <Crown className="w-3 h-3" /> Miembro
+                          <Crown className="w-3 h-3" /> {t("admin_member_badge")}
                         </span>
                       )}
                       {u.banned && (
                         <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-error-400/15 text-error-400 whitespace-nowrap">
-                          Baneado
+                          {t("admin_banned_badge")}
                         </span>
                       )}
                     </div>
@@ -267,7 +277,7 @@ export function AdminView() {
                 );
               })}
               {users.length === 0 && (
-                <p className="text-center text-sm text-muted py-10">No hay usuarios registrados.</p>
+                <p className="text-center text-sm text-muted py-10">{t("admin_no_users")}</p>
               )}
             </div>
           )}
@@ -278,7 +288,7 @@ export function AdminView() {
               <div className="glass rounded-2xl p-4 border border-border space-y-3">
                 <div className="flex items-center gap-2">
                   <Plus className="w-4 h-4 text-primary" />
-                  <h2 className="text-sm font-bold">Generar claves</h2>
+                  <h2 className="text-sm font-bold">{t("admin_generate_keys_title")}</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {(["7", "30", "365", "lifetime"] as const).map((d) => (
@@ -296,7 +306,7 @@ export function AdminView() {
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-muted">Cantidad:</label>
+                  <label className="text-xs text-muted">{t("admin_quantity_label")}</label>
                   <input
                     type="number"
                     min={1}
@@ -311,7 +321,7 @@ export function AdminView() {
                     className="ml-auto px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-600 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {genLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                    Generar
+                    {t("admin_generate_button")}
                   </button>
                 </div>
               </div>
@@ -328,7 +338,7 @@ export function AdminView() {
                           : k.status === "redeemed" ? "bg-primary/15 text-primary"
                           : "bg-error-400/15 text-error-400"
                         }`}>
-                          {k.status === "available" ? "Disponible" : k.status === "redeemed" ? "Usada" : "Revocada"}
+                          {k.status === "available" ? t("admin_key_available") : k.status === "redeemed" ? t("admin_key_redeemed") : t("admin_key_revoked")}
                         </span>
                       </div>
                     </div>
@@ -359,7 +369,7 @@ export function AdminView() {
                   </div>
                 ))}
                 {keys.length === 0 && (
-                  <p className="text-center text-sm text-muted py-10">No hay claves generadas.</p>
+                  <p className="text-center text-sm text-muted py-10">{t("admin_no_keys")}</p>
                 )}
               </div>
             </div>
@@ -382,9 +392,9 @@ export function AdminView() {
                   <div className="flex-1 min-w-[140px]">
                     <p className="text-sm font-bold truncate">{l.profile_email}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-muted">{l.source === "stripe" ? "Stripe" : "Clave"}</span>
+                      <span className="text-[10px] text-muted">{l.source === "stripe" ? "Stripe" : t("license_source_key")}</span>
                       <span className="text-[10px] text-muted">·</span>
-                      <span className="text-[10px] text-muted">{l.expires_at ? fmtDate(l.expires_at) : "De por vida"}</span>
+                      <span className="text-[10px] text-muted">{l.expires_at ? fmtDate(l.expires_at) : t("admin_duration_lifetime")}</span>
                     </div>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 ${
@@ -392,12 +402,12 @@ export function AdminView() {
                     : l.status === "cancelled" ? "bg-error-400/15 text-error-400"
                     : "bg-warning-400/15 text-warning-400"
                   }`}>
-                    {l.status === "active" ? "Activa" : l.status === "cancelled" ? "Cancelada" : "Expirada"}
+                    {l.status === "active" ? t("admin_active") : l.status === "cancelled" ? t("admin_license_cancelled") : t("admin_license_expired")}
                   </span>
                 </div>
               ))}
               {licenses.length === 0 && (
-                <p className="text-center text-sm text-muted py-10">No hay licencias registradas.</p>
+                <p className="text-center text-sm text-muted py-10">{t("admin_no_licenses")}</p>
               )}
             </div>
           )}
@@ -408,24 +418,23 @@ export function AdminView() {
               <div className="glass rounded-2xl p-4 border border-border">
                 <div className="flex items-center gap-2 mb-1">
                   <SlidersHorizontal className="w-4 h-4 text-primary" />
-                  <h2 className="text-sm font-bold">Permisos del rango Staff</h2>
+                  <h2 className="text-sm font-bold">{t("admin_perms_title")}</h2>
                 </div>
                 <p className="text-xs text-muted">
-                  Como Owner, decides qué puede hacer el rango Staff. Cambiar rangos, gestionar
-                  permisos y el rango Owner nunca están disponibles para Staff.
+                  {t("admin_perms_desc")}
                 </p>
               </div>
 
               <div className="glass rounded-xl border border-border divide-y divide-border">
                 <PermissionRow
-                  label="Banear usuarios"
-                  description="Staff puede suspender cuentas."
+                  label={t("admin_perm_ban_label")}
+                  description={t("admin_perm_ban_desc")}
                   checked={!!rankPerms?.can_ban}
                   onChange={(v) => setStaffPermission("can_ban", v)}
                 />
                 <PermissionRow
-                  label="Desbanear usuarios"
-                  description="Staff puede levantar suspensiones."
+                  label={t("admin_perm_unban_label")}
+                  description={t("admin_perm_unban_desc")}
                   checked={!!rankPerms?.can_unban}
                   onChange={(v) => setStaffPermission("can_unban", v)}
                 />
@@ -434,9 +443,7 @@ export function AdminView() {
               <div className="glass rounded-xl p-3.5 border border-border flex items-start gap-2.5">
                 <Lock className="w-4 h-4 text-muted flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted leading-relaxed">
-                  Cambiar el rango de un usuario, eliminar cuentas y modificar estos permisos
-                  están reservados al Owner y se verifican en el servidor — Staff no puede
-                  realizarlos aunque intente llamarlos directamente.
+                  {t("admin_owner_only_note")}
                 </p>
               </div>
             </div>
@@ -466,6 +473,7 @@ export function AdminView() {
 }
 
 function ElevenLabsUsageCard() {
+  const { t, lang } = useI18n();
   const [usage, setUsage] = useState<{
     total_credits: number; used_credits: number; percent_used: number;
     resets_at: string | null; tier: string | null;
@@ -482,7 +490,7 @@ function ElevenLabsUsageCard() {
       headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
     });
     if (fnError || data?.error) {
-      setError(data?.error ?? "No se pudo cargar el uso de ElevenLabs.");
+      setError(data?.error ?? t("admin_elevenlabs_error"));
     } else {
       setError(null);
       setUsage(data);
@@ -505,7 +513,7 @@ function ElevenLabsUsageCard() {
   }, [fetchUsage]);
 
   const fmtResetDate = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" }) : "—";
+    iso ? new Date(iso).toLocaleDateString(lang === "en" ? "en-US" : "es-ES", { day: "2-digit", month: "long", year: "numeric" }) : "—";
 
   const barColor = !usage
     ? "bg-primary"
@@ -521,16 +529,16 @@ function ElevenLabsUsageCard() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <h2 className="text-sm font-bold">Uso de ElevenLabs</h2>
+            <h2 className="text-sm font-bold">{t("admin_elevenlabs_usage_title")}</h2>
             <Lock className="w-3 h-3 text-muted" />
           </div>
-          <p className="text-[11px] text-muted">Solo visible para Owner · vía backend seguro</p>
+          <p className="text-[11px] text-muted">{t("admin_owner_only_badge")}</p>
         </div>
         <button
           onClick={() => fetchUsage(true)}
           disabled={refreshing}
           className="w-8 h-8 rounded-lg bg-bg-soft border border-border flex items-center justify-center text-muted hover:text-primary transition-colors flex-shrink-0"
-          title="Actualizar ahora"
+          title={t("admin_refresh_now")}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
@@ -549,15 +557,15 @@ function ElevenLabsUsageCard() {
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2.5">
             <div className="bg-bg-soft rounded-xl p-2.5 border border-border">
-              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">Total</p>
-              <p className="text-sm font-bold">{usage.total_credits.toLocaleString("es-ES")}</p>
+              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">{t("admin_total")}</p>
+              <p className="text-sm font-bold">{usage.total_credits.toLocaleString(lang === "en" ? "en-US" : "es-ES")}</p>
             </div>
             <div className="bg-bg-soft rounded-xl p-2.5 border border-border">
-              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">Usados</p>
-              <p className="text-sm font-bold">{usage.used_credits.toLocaleString("es-ES")}</p>
+              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">{t("admin_used")}</p>
+              <p className="text-sm font-bold">{usage.used_credits.toLocaleString(lang === "en" ? "en-US" : "es-ES")}</p>
             </div>
             <div className="bg-bg-soft rounded-xl p-2.5 border border-border">
-              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">Uso</p>
+              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">{t("admin_usage_pct")}</p>
               <p className="text-sm font-bold">{usage.percent_used}%</p>
             </div>
           </div>
@@ -572,7 +580,7 @@ function ElevenLabsUsageCard() {
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-muted">
-            <span>Se reinicia el {fmtResetDate(usage.resets_at)}</span>
+            <span>{t("admin_resets_on", { date: fmtResetDate(usage.resets_at) })}</span>
             {usage.tier && <span className="capitalize">{usage.tier}</span>}
           </div>
         </div>
@@ -582,6 +590,7 @@ function ElevenLabsUsageCard() {
 }
 
 function StripeMetricsCard() {
+  const { t, lang } = useI18n();
   const [metrics, setMetrics] = useState<{
     revenue_this_month_cents: number; revenue_has_more: boolean;
     active_subscribers: number; active_subscribers_has_more: boolean;
@@ -599,7 +608,7 @@ function StripeMetricsCard() {
       headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
     });
     if (fnError || data?.error) {
-      setError(data?.error ?? "No se pudieron cargar las métricas de Stripe.");
+      setError(data?.error ?? t("admin_stripe_metrics_error"));
     } else {
       setError(null);
       setMetrics(data);
@@ -619,8 +628,8 @@ function StripeMetricsCard() {
     };
   }, [fetchMetrics]);
 
-  const fmtMoney = (cents: number) => `$${(cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const fmtShortDate = (iso: string) => new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+  const fmtMoney = (cents: number) => `$${(cents / 100).toLocaleString(lang === "en" ? "en-US" : "es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtShortDate = (iso: string) => new Date(iso).toLocaleDateString(lang === "en" ? "en-US" : "es-ES", { day: "2-digit", month: "short" });
 
   return (
     <div className="glass rounded-2xl p-4 border border-border">
@@ -630,16 +639,16 @@ function StripeMetricsCard() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <h2 className="text-sm font-bold">Ingresos y suscripciones</h2>
+            <h2 className="text-sm font-bold">{t("admin_revenue_title")}</h2>
             <Lock className="w-3 h-3 text-muted" />
           </div>
-          <p className="text-[11px] text-muted">Solo visible para Owner · vía backend seguro</p>
+          <p className="text-[11px] text-muted">{t("admin_owner_only_badge")}</p>
         </div>
         <button
           onClick={() => fetchMetrics(true)}
           disabled={refreshing}
           className="w-8 h-8 rounded-lg bg-bg-soft border border-border flex items-center justify-center text-muted hover:text-primary transition-colors flex-shrink-0"
-          title="Actualizar ahora"
+          title={t("admin_refresh_now")}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
@@ -658,14 +667,14 @@ function StripeMetricsCard() {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2.5">
             <div className="bg-bg-soft rounded-xl p-2.5 border border-border">
-              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">Ingresos este mes</p>
+              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">{t("admin_revenue_this_month")}</p>
               <p className="text-lg font-extrabold text-success-400">
                 {fmtMoney(metrics.revenue_this_month_cents)}
                 {metrics.revenue_has_more && <span className="text-[10px] text-muted-soft font-normal">+</span>}
               </p>
             </div>
             <div className="bg-bg-soft rounded-xl p-2.5 border border-border">
-              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">Suscriptores activos</p>
+              <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">{t("admin_active_subscribers")}</p>
               <p className="text-lg font-extrabold">
                 {metrics.active_subscribers}
                 {metrics.active_subscribers_has_more && <span className="text-[10px] text-muted-soft font-normal">+</span>}
@@ -675,10 +684,10 @@ function StripeMetricsCard() {
 
           <div className="pt-1">
             <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-1.5">
-              Próximas renovaciones (7 días)
+              {t("admin_upcoming_renewals")}
             </p>
             {metrics.upcoming_renewals.length === 0 ? (
-              <p className="text-xs text-muted-soft">Ninguna en los próximos 7 días.</p>
+              <p className="text-xs text-muted-soft">{t("admin_no_upcoming_renewals")}</p>
             ) : (
               <div className="space-y-1.5">
                 {metrics.upcoming_renewals.map((r, i) => (
@@ -693,10 +702,10 @@ function StripeMetricsCard() {
 
           <div className="pt-1 border-t border-border">
             <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-1.5 mt-2">
-              Cancelaciones recientes
+              {t("admin_recent_cancellations")}
             </p>
             {metrics.recent_cancellations.length === 0 ? (
-              <p className="text-xs text-muted-soft">Sin cancelaciones recientes.</p>
+              <p className="text-xs text-muted-soft">{t("admin_no_recent_cancellations")}</p>
             ) : (
               <div className="space-y-1.5">
                 {metrics.recent_cancellations.map((c, i) => (
@@ -753,6 +762,7 @@ function UserModal({
   onSetRank: (rank: UserRank) => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const isMember = !!license;
   const banAllowed = user.banned ? canUnban : canBan;
@@ -773,7 +783,7 @@ function UserModal({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold truncate">{user.email}</p>
-              <p className="text-[11px] text-muted">Cuenta desde {fmtDate(user.created_at)}</p>
+              <p className="text-[11px] text-muted">{t("admin_account_since", { date: fmtDate(user.created_at) })}</p>
             </div>
             <button
               onClick={onClose}
@@ -793,42 +803,42 @@ function UserModal({
 
             {/* Basic info */}
             <div className="space-y-2">
-              <InfoRow icon={Mail} label="Correo" value={user.email} />
-              <InfoRow icon={Calendar} label="Registrado" value={fmtDate(user.created_at)} />
+              <InfoRow icon={Mail} label={t("admin_email_label")} value={user.email} />
+              <InfoRow icon={Calendar} label={t("admin_registered_label")} value={fmtDate(user.created_at)} />
             </div>
 
             {/* Membership */}
             <div className="glass rounded-xl p-3.5 border border-border">
               <div className="flex items-center gap-2 mb-1">
                 <Crown className={`w-4 h-4 ${isMember ? "text-primary" : "text-muted"}`} />
-                <span className="text-sm font-bold">{isMember ? "Miembro con licencia activa" : "Sin licencia"}</span>
+                <span className="text-sm font-bold">{isMember ? t("admin_member_active_license") : t("admin_no_license_label")}</span>
               </div>
               <p className="text-xs text-muted">
                 {isMember
                   ? license?.expires_at
-                    ? `Vence el ${fmtDate(license.expires_at)} · ${license.source === "stripe" ? "Stripe" : "Clave"}`
-                    : `De por vida · ${license?.source === "stripe" ? "Stripe" : "Clave"}`
-                  : "Este usuario no tiene acceso a funciones de miembro."}
+                    ? t("admin_expires_on", { date: fmtDate(license.expires_at), source: license.source === "stripe" ? "Stripe" : t("license_source_key") })
+                    : t("admin_lifetime_source", { source: license?.source === "stripe" ? "Stripe" : t("license_source_key") })
+                  : t("admin_user_no_member_access")}
               </p>
             </div>
 
             {/* Status + rank */}
             <div className="grid grid-cols-2 gap-2.5">
               <div className="glass rounded-xl p-3 border border-border">
-                <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-1">Estado</p>
+                <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-1">{t("admin_status_label")}</p>
                 <div className="flex items-center gap-1.5">
                   {user.banned ? (
-                    <><Ban className="w-3.5 h-3.5 text-error-400" /><span className="text-sm font-bold text-error-400">Baneado</span></>
+                    <><Ban className="w-3.5 h-3.5 text-error-400" /><span className="text-sm font-bold text-error-400">{t("admin_banned_badge")}</span></>
                   ) : (
-                    <><BadgeCheck className="w-3.5 h-3.5 text-success-400" /><span className="text-sm font-bold text-success-400">Activa</span></>
+                    <><BadgeCheck className="w-3.5 h-3.5 text-success-400" /><span className="text-sm font-bold text-success-400">{t("admin_active")}</span></>
                   )}
                 </div>
               </div>
               <div className="glass rounded-xl p-3 border border-border">
-                <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-1">Rango</p>
+                <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-1">{t("admin_rank_label")}</p>
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-accent" />
-                  <span className="text-sm font-bold">{RANK_LABEL[user.rank]}</span>
+                  <span className="text-sm font-bold">{rankLabel(t, user.rank)}</span>
                 </div>
               </div>
             </div>
@@ -836,7 +846,7 @@ function UserModal({
             {/* Rank change — owner only, real permission enforced server-side too */}
             <div>
               <label className="label flex items-center gap-1.5">
-                Cambiar rango
+                {t("admin_change_rank_label")}
                 {!canChangeRank && <Lock className="w-3 h-3 text-muted" />}
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -851,12 +861,12 @@ function UserModal({
                         : "bg-bg-soft text-muted border border-border hover:text-text"
                     }`}
                   >
-                    {RANK_LABEL[r]}
+                    {rankLabel(t, r)}
                   </button>
                 ))}
               </div>
               {!canChangeRank && (
-                <p className="text-[11px] text-muted-soft mt-1.5">Solo el Owner puede cambiar rangos.</p>
+                <p className="text-[11px] text-muted-soft mt-1.5">{t("admin_owner_only_rank")}</p>
               )}
             </div>
 
@@ -873,7 +883,7 @@ function UserModal({
                   }`}
                 >
                   {user.banned ? <ShieldCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
-                  {user.banned ? "Desbanear usuario" : "Banear usuario"}
+                  {user.banned ? t("admin_unban_user") : t("admin_ban_user")}
                   {!banAllowed && <Lock className="w-3.5 h-3.5 ml-1" />}
                 </button>
 
@@ -883,13 +893,13 @@ function UserModal({
                       onClick={onDelete}
                       className="flex-1 py-2.5 rounded-xl bg-error-400 text-white text-sm font-bold hover:bg-error-500 transition-colors"
                     >
-                      Confirmar eliminación
+                      {t("admin_confirm_delete")}
                     </button>
                     <button
                       onClick={() => setConfirmingDelete(false)}
                       className="px-4 py-2.5 rounded-xl bg-bg-soft border border-border text-sm font-bold text-muted"
                     >
-                      Cancelar
+                      {t("admin_cancel")}
                     </button>
                   </div>
                 ) : (
@@ -899,19 +909,19 @@ function UserModal({
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-error-400/10 text-error-400 text-sm font-bold hover:bg-error-400/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Eliminar cuenta
+                    {t("admin_delete_account")}
                     {!canDelete && <Lock className="w-3.5 h-3.5 ml-1" />}
                   </button>
                 )}
                 {!canDelete && (
-                  <p className="text-[11px] text-muted-soft text-center">Solo el Owner puede eliminar cuentas.</p>
+                  <p className="text-[11px] text-muted-soft text-center">{t("admin_owner_only_delete")}</p>
                 )}
               </div>
             )}
 
             {!canManagePermissions && (
               <p className="text-[10px] text-muted-soft text-center pt-1">
-                Los permisos del rango Staff se configuran en la pestaña “Permisos” (solo Owner).
+                {t("admin_perms_tab_hint")}
               </p>
             )}
           </div>
