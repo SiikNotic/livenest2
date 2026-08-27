@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStore } from "../lib/store";
 import { useI18n } from "../lib/i18n";
 import { supabase, type FilterRule } from "../lib/supabase";
-import { Plus, Trash2, Filter as FilterIcon, Shield, Eye } from "lucide-react";
+import { Plus, Trash2, Filter as FilterIcon, Shield } from "lucide-react";
 
 export function FiltersView() {
   const filters = useStore((s) => s.filters);
@@ -33,10 +33,6 @@ export function FiltersView() {
     setShowForm(false);
     loadFilters();
   };
-
-  const blockCount = filters.filter((f) => f.enabled && f.type === "block").length;
-  const replaceCount = filters.filter((f) => f.enabled && f.type === "replace").length;
-  const allowCount = filters.filter((f) => f.enabled && f.type === "allow").length;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -77,12 +73,6 @@ export function FiltersView() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2">
-        <SummaryCard icon={<FilterIcon className="w-4 h-4" />} label={t("filters_block")} value={blockCount} color="text-red-400" />
-        <SummaryCard icon={<Eye className="w-4 h-4" />} label={t("filters_allow")} value={allowCount} color="text-emerald-400" />
-        <SummaryCard icon={<span className="text-xs font-bold">↔</span>} label={t("filters_replace")} value={replaceCount} color="text-accent" />
-      </div>
-
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold text-text-soft">{t("filters_rules", { n: filters.length })}</h2>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary text-xs">
@@ -106,16 +96,6 @@ export function FiltersView() {
       )}
     </div>
   );
-
-  function SummaryCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
-    return (
-      <div className="card flex flex-col items-center gap-1 py-3">
-        <span className={color}>{icon}</span>
-        <span className="text-lg font-bold tabular-nums">{value}</span>
-        <span className="text-[10px] text-muted uppercase tracking-wide">{label}</span>
-      </div>
-    );
-  }
 
   function FilterRow({ filter, onToggle, onDelete }: { filter: FilterRule; onToggle: () => void; onDelete: () => void }) {
     const typeConfig = {
