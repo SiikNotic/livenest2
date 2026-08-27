@@ -134,35 +134,6 @@ export function NotificationsView() {
             />
           </div>
 
-          <div className="card">
-            <label className="label">{t("notif_default_sound")}</label>
-            <div className="grid grid-cols-3 gap-2">
-              {SOUND_VALUES.map((val) => {
-                const isActive = settings.notif_sound_type === val;
-                return (
-                  <button
-                    key={val}
-                    onClick={() => saveSettings({ notif_sound_type: val })}
-                    className={`flex flex-col items-center gap-1 px-2 py-3 rounded-xl transition-all duration-150 card-press ${
-                      isActive
-                        ? "bg-primary text-bg"
-                        : "bg-bg-soft text-muted hover:text-text border border-border"
-                    }`}
-                  >
-                    <span className="text-xl leading-none">{SOUND_ICONS[val]}</span>
-                    <span className="text-[10px] font-semibold leading-tight text-center">{t(SOUND_LABEL_KEYS[val])}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => preview(settings.notif_sound_type as SoundType)}
-              className="btn-ghost w-full mt-3 text-xs"
-            >
-              <Play className="w-3.5 h-3.5" /> {t("notif_test_sound")}
-            </button>
-          </div>
-
           <div>
             <label className="label px-1 mb-2">{t("notif_by_event")}</label>
             <div className="space-y-2">
