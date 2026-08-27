@@ -34,6 +34,8 @@ export class TikTokConnection {
   private visibilityHandler: (() => void) | null = null;
   private seenKeys = new Map<string, number>();
   private static readonly MAX_SEEN = 500;
+  // TEMPORAL — ver el comentario en handleMessage().
+  private loggedUnknownEventTypes = new Set<string>();
 
   constructor(handlers: Handlers) {
     this.handlers = handlers;
@@ -188,6 +190,26 @@ export class TikTokConnection {
     };
   }
 
+  // TEMPORAL — ver el comentario en handleMessage(). Loguea (una sola vez
+  // por tipo, para no inundar la consola) cualquier evento cuyo "type" no
+  // sea uno de los ya reconocidos y contenga alguna de estas palabras, junto
+  // con el payload completo — así, si TikTok manda algo para "alguien pidió
+  // subir al live", queda a la vista en DevTools → Console para poder armar
+  // el evento real a partir de un caso de verdad, en vez de adivinar.
+  private static readonly LINK_MIC_KEYWORDS = ["link", "invite", "cohost", "co-host", "guest"];
+
+  private logUnknownLinkMicEvent(item: unknown) {
+    if (typeof item !== "object" || item === null) return;
+    const type = (item as Record<string, unknown>).type;
+    if (typeof type !== "string" || !type) return;
+    const lower = type.toLowerCase();
+    if (!TikTokConnection.LINK_MIC_KEYWORDS.some((kw) => lower.includes(kw))) return;
+    if (this.loggedUnknownEventTypes.has(type)) return;
+    this.loggedUnknownEventTypes.add(type);
+    // eslint-disable-next-line no-console
+    console.log(`[LiveNest][diagnóstico link-mic] tipo de evento nuevo: "${type}" — payload completo:`, item);
+  }
+
   private handleMessage(raw: string) {
     let parsed: unknown;
     try {
@@ -208,6 +230,17 @@ export class TikTokConnection {
     else items = [parsed]; // Single event
 
     for (const item of items) {
+      // TEMPORAL — para investigar la alerta de "solicitud de subir al
+      // live" (co-host / link-mic): no hay forma de confirmar desde acá si
+      // Euler Stream siquiera manda esta señal (podría ser algo que TikTok
+      // solo expone del lado del host en su propia app, y no por el mismo
+      // feed público de eventos). Este logger no cambia ningún comportamiento
+      // — solo imprime en la consola del navegador cualquier tipo de evento
+      // no reconocido que contenga "link"/"invite"/"cohost"/"guest", una
+      // sola vez por tipo. Se puede borrar en cuanto se confirme (o se
+      // descarte) qué tipo de evento manda TikTok para esto.
+      this.logUnknownLinkMicEvent(item);
+
       // Los regalos se manejan aparte: TikTok manda un mensaje por cada
       // "golpe" dentro de una racha (ej. 2 rosas seguidas = 2 mensajes con
       // repeatCount 1 y 2), y solo el último trae repeatEnd=true. Si los
