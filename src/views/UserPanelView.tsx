@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "../lib/auth";
+import { useI18n } from "../lib/i18n";
 import { supabase } from "../lib/supabase";
 import { MEMBERSHIP_PRICE_LABEL } from "../lib/stripeConfig";
 import { KeyRound, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, Crown, Calendar, Sparkles, LogOut, User as UserIcon } from "lucide-react";
@@ -7,6 +8,7 @@ import { MembershipCard } from "../components/MembershipCard";
 
 export function UserPanelView() {
   const { user, profile, license, refreshLicense, signOut, setUsername, refreshProfile } = useAuth();
+  const { t, lang } = useI18n();
   const [keyInput, setKeyInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -59,20 +61,20 @@ export function UserPanelView() {
     setError(null);
     const { ok, data } = await callEdgeFunction("stripe-cancel-subscription");
     if (!ok) {
-      setError(data.error ?? "No se pudo cancelar la suscripción. Intenta de nuevo.");
+      setError(data.error ?? t("account_cancel_error"));
       setCancelLoading(false);
       setConfirmingCancel(false);
       return;
     }
     setCancelInfo(
       data.access_until
-        ? `Tu membresía no se renovará. Conservas el acceso Premium hasta el ${fmtDate(data.access_until)}.`
-        : "Tu suscripción fue cancelada — no se te volverá a cobrar."
+        ? t("account_cancel_success_until", { date: fmtDate(data.access_until, lang) })
+        : t("account_cancel_success")
     );
     await refreshLicense();
     setCancelLoading(false);
     setConfirmingCancel(false);
-  }, [license, user, callEdgeFunction, refreshLicense]);
+  }, [license, user, callEdgeFunction, refreshLicense, t, lang]);
 
   const handleRedeem = useCallback(async () => {
     if (!keyInput.trim() || !user) return;
@@ -88,26 +90,26 @@ export function UserPanelView() {
       if (rpcError) {
         const msg = rpcError.message || "";
         if (msg.includes("already_has_active_license")) {
-          setError("Ya tienes una licencia activa.");
+          setError(t("account_redeem_already_active"));
         } else if (msg.includes("invalid_or_used_key")) {
-          setError("La clave no es válida o ya fue utilizada.");
+          setError(t("account_redeem_invalid_key"));
         } else if (msg.includes("not_authenticated")) {
-          setError("Tu sesión expiró. Vuelve a iniciar sesión.");
+          setError(t("account_session_expired"));
         } else {
-          setError(msg || "Error al activar la licencia.");
+          setError(msg || t("account_redeem_generic_error"));
         }
         setLoading(false);
         return;
       }
 
-      setSuccess("Licencia activada correctamente.");
+      setSuccess(t("account_redeem_success"));
       setKeyInput("");
       await refreshLicense();
     } catch {
-      setError("Error al activar la licencia.");
+      setError(t("account_redeem_generic_error"));
     }
     setLoading(false);
-  }, [keyInput, user, refreshLicense]);
+  }, [keyInput, user, refreshLicense, t]);
 
   return (
     <div className="max-w-2xl mx-auto w-full space-y-6">
@@ -120,7 +122,7 @@ export function UserPanelView() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold truncate">{profile?.username ? `@${profile.username}` : profile?.email || user?.email}</p>
             <p className="text-xs text-muted truncate">
-              {profile?.username ? (profile?.email || user?.email) : profile?.role === "admin" ? "Administrador" : "Usuario"}
+              {profile?.username ? (profile?.email || user?.email) : profile?.role === "admin" ? t("role_admin") : t("role_user")}
             </p>
           </div>
           <button
@@ -128,16 +130,16 @@ export function UserPanelView() {
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-bg-soft border border-border text-xs font-semibold text-muted hover:text-error-400 transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
-            Salir
+            {t("logout")}
           </button>
         </div>
 
         {!profile?.username && (
           <div className="mt-4 pt-4 border-t border-border space-y-2">
             <p className="text-xs font-semibold text-text-soft flex items-center gap-1.5">
-              <UserIcon className="w-3.5 h-3.5 text-primary" /> Elige un nombre de usuario
+              <UserIcon className="w-3.5 h-3.5 text-primary" /> {t("account_choose_username")}
             </p>
-            <p className="text-[11px] text-muted">Así te va a ver el resto de la app.</p>
+            <p className="text-[11px] text-muted">{t("auth_username_hint")}</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -145,7 +147,7 @@ export function UserPanelView() {
                 maxLength={24}
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
-                placeholder="tu_usuario"
+                placeholder={t("auth_username_placeholder")}
                 className="flex-1 px-3 py-2 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
               />
               <button
@@ -153,7 +155,7 @@ export function UserPanelView() {
                 disabled={usernameLoading || usernameInput.trim().length < 3}
                 className="btn-primary text-xs px-4 disabled:opacity-50"
               >
-                {usernameLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Guardar"}
+                {usernameLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t("account_save")}
               </button>
             </div>
             {usernameError && (
@@ -168,26 +170,26 @@ export function UserPanelView() {
         <div className="glass rounded-2xl p-5 border border-border space-y-4">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-success-400" />
-            <h2 className="text-base font-bold">Licencia activa</h2>
+            <h2 className="text-base font-bold">{t("account_license_active")}</h2>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-bg-soft p-3 border border-border">
               <div className="flex items-center gap-1.5 mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-primary" />
-                <span className="text-[11px] font-semibold text-muted">Origen</span>
+                <span className="text-[11px] font-semibold text-muted">{t("account_license_source")}</span>
               </div>
               <p className="text-sm font-bold capitalize">
-                {license.source === "stripe" ? "Suscripción" : "Clave"}
+                {license.source === "stripe" ? t("license_source_subscription") : t("license_source_key")}
               </p>
             </div>
             <div className="rounded-xl bg-bg-soft p-3 border border-border">
               <div className="flex items-center gap-1.5 mb-1">
                 <Calendar className="w-3.5 h-3.5 text-primary" />
-                <span className="text-[11px] font-semibold text-muted">Expira</span>
+                <span className="text-[11px] font-semibold text-muted">{t("account_license_expires")}</span>
               </div>
               <p className="text-sm font-bold">
-                {license.expires_at ? fmtDate(license.expires_at) : "De por vida"}
+                {license.expires_at ? fmtDate(license.expires_at, lang) : t("account_license_lifetime")}
               </p>
             </div>
           </div>
@@ -196,7 +198,7 @@ export function UserPanelView() {
             <div className="pt-2 border-t border-border space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted">
-                  {license.auto_renew ? `Se renueva automáticamente · ${MEMBERSHIP_PRICE_LABEL}` : "No se renovará — acceso vigente hasta que expire"}
+                  {license.auto_renew ? t("account_auto_renew", { price: MEMBERSHIP_PRICE_LABEL }) : t("account_no_renew")}
                 </span>
               </div>
 
@@ -216,14 +218,14 @@ export function UserPanelView() {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-error-400 text-white text-xs font-bold hover:bg-error-500 transition-colors disabled:opacity-50"
                     >
                       {cancelLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                      Sí, cancelar
+                      {t("account_confirm_cancel")}
                     </button>
                     <button
                       onClick={() => setConfirmingCancel(false)}
                       disabled={cancelLoading}
                       className="px-4 py-2.5 rounded-xl bg-bg-soft border border-border text-xs font-bold text-muted"
                     >
-                      Volver
+                      {t("account_go_back")}
                     </button>
                   </div>
                 ) : (
@@ -232,7 +234,7 @@ export function UserPanelView() {
                     className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-error-400/10 border border-error-400/20 text-error-400 text-xs font-bold hover:bg-error-400/20 transition-colors"
                   >
                     <XCircle className="w-3.5 h-3.5" />
-                    Cancelar membresía
+                    {t("account_cancel_membership")}
                   </button>
                 )
               )}
@@ -244,10 +246,10 @@ export function UserPanelView() {
           <div className="glass rounded-2xl p-5 border border-border space-y-4">
             <div className="flex items-center gap-2">
               <XCircle className="w-5 h-5 text-muted" />
-              <h2 className="text-base font-bold">Sin licencia activa</h2>
+              <h2 className="text-base font-bold">{t("account_no_license")}</h2>
             </div>
             <p className="text-xs text-muted">
-              Suscríbete o activa una clave de licencia para acceder a todas las funciones de LiveNest.
+              {t("account_no_license_desc")}
             </p>
           </div>
 
@@ -259,10 +261,10 @@ export function UserPanelView() {
       <div className="glass rounded-2xl p-5 border border-border space-y-3">
         <div className="flex items-center gap-2">
           <KeyRound className="w-5 h-5 text-primary" />
-          <h2 className="text-base font-bold">Activar clave de licencia</h2>
+          <h2 className="text-base font-bold">{t("account_redeem_title")}</h2>
         </div>
         <p className="text-xs text-muted">
-          ¿Tienes una clave (7 días, 30 días, 1 año o de por vida)? Actívala aquí.
+          {t("account_redeem_desc")}
         </p>
         <div className="flex gap-2">
           <input
@@ -277,7 +279,7 @@ export function UserPanelView() {
             disabled={loading || !keyInput.trim()}
             className="px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-600 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Activar"}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("account_activate")}
           </button>
         </div>
         {error && (
@@ -297,6 +299,6 @@ export function UserPanelView() {
   );
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+function fmtDate(iso: string, lang: "es" | "en") {
+  return new Date(iso).toLocaleDateString(lang === "en" ? "en-US" : "es-ES", { day: "numeric", month: "long", year: "numeric" });
 }
