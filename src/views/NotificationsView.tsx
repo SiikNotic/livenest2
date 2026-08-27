@@ -2,6 +2,7 @@ import { useStore } from "../lib/store";
 import { useI18n } from "../lib/i18n";
 import { useAuth } from "../lib/auth";
 import { soundManager, isCustomSoundUrl, type SoundType } from "../lib/soundManager";
+import { SOUND_PACK, SOUND_PACK_CATEGORIES, isPackSoundUrl, findPackSound } from "../lib/soundPack";
 import { uploadAlertSound } from "../lib/supabase";
 import {
   Bell, Volume2, Gift, Heart, UserPlus, Share2, Crown,
@@ -9,33 +10,14 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 
-const SOUND_VALUES: SoundType[] = [
-  "chime", "pop", "bell", "coin", "ding", "whoosh", "sparkle", "buzzer",
-  "success", "error", "notify", "heartbeat", "laser", "bubble", "click", "fanfare",
-  "airhorn", "clap", "cash", "explosion", "levelup", "rimshot", "alarm", "tada",
-  "drumroll", "boing", "zap", "rainbow", "powerup", "gameover", "siren", "whistle", "none",
-];
-
-const SOUND_ICONS: Record<SoundType, string> = {
-  chime: "🔔", pop: "🫧", bell: "🛎️", coin: "🪙", ding: "✨", whoosh: "💨",
-  sparkle: "⭐", buzzer: "🚨", success: "✅", error: "❌", notify: "📢",
-  heartbeat: "❤️", laser: "🔫", bubble: "🔵", click: "🖱️", fanfare: "🎺",
-  airhorn: "📯", clap: "👏", cash: "💰", explosion: "💥", levelup: "🆙",
-  rimshot: "🥁", alarm: "⏰", tada: "🎉", drumroll: "🥁", boing: "🌀",
-  zap: "⚡", rainbow: "🌈", powerup: "🎮", gameover: "👾", siren: "🚓",
-  whistle: "📢", none: "🔇",
-};
-
-const SOUND_LABEL_KEYS: Record<SoundType, import("../lib/i18n").TranslationKey> = {
-  chime: "snd_chime", pop: "snd_pop", bell: "snd_bell", coin: "snd_coin",
-  ding: "snd_ding", whoosh: "snd_whoosh", sparkle: "snd_sparkle", buzzer: "snd_buzzer",
-  success: "snd_success", error: "snd_error", notify: "snd_notify", heartbeat: "snd_heartbeat",
-  laser: "snd_laser", bubble: "snd_bubble", click: "snd_click", fanfare: "snd_fanfare",
-  airhorn: "snd_airhorn", clap: "snd_clap", cash: "snd_cash", explosion: "snd_explosion",
-  levelup: "snd_levelup", rimshot: "snd_rimshot", alarm: "snd_alarm", tada: "snd_tada",
-  drumroll: "snd_drumroll", boing: "snd_boing", zap: "snd_zap", rainbow: "snd_rainbow",
-  powerup: "snd_powerup", gameover: "snd_gameover", siren: "snd_siren", whistle: "snd_whistle",
-  none: "snd_none",
+// Sonido por defecto por evento — todos del LiveNest2-Sound-Pack-v1 (ver
+// src/lib/soundPack.ts). Reemplaza a los tonos sintetizados que había antes.
+const DEFAULT_SOUND_BY_EVENT: Record<string, string> = {
+  notif_gift_sound: "/sounds/success_001.wav",
+  notif_follow_sound: "/sounds/notification_001.wav",
+  notif_like_sound: "/sounds/cute_001.wav",
+  notif_share_sound: "/sounds/whoosh_001.wav",
+  notif_sub_sound: "/sounds/epic_001.wav",
 };
 
 const EVENTS = [
@@ -66,9 +48,10 @@ export function NotificationsView() {
 
   const preview = (value: string) => {
     soundManager.setVolume(settings.notif_volume);
-    if (isCustomSoundUrl(value)) {
+    if (isCustomSoundUrl(value) || isPackSoundUrl(value)) {
       soundManager.playUrl(value);
     } else {
+      // Valor viejo (de antes del pack de sonidos): sigue sonando vía síntesis.
       soundManager.play(value as SoundType);
     }
   };
@@ -141,6 +124,10 @@ export function NotificationsView() {
                 const Icon = evt.icon;
                 const rawValue = (settings as any)[evt.key] as string;
                 const isCustom = isCustomSoundUrl(rawValue);
+                const packSound = isPackSoundUrl(rawValue) ? findPackSound(rawValue) : undefined;
+                const packCategory = packSound
+                  ? SOUND_PACK_CATEGORIES.find((c) => c.key === packSound.category)
+                  : undefined;
                 const isExpanded = activeEvent === evt.key;
                 const isUploading = uploadingKey === evt.key;
 
@@ -153,9 +140,13 @@ export function NotificationsView() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-text-soft">{t(evt.labelKey)}</p>
                         <p className="text-xs text-muted flex items-center gap-1">
-                          <span>{isCustom ? "🎵" : SOUND_ICONS[rawValue as SoundType]}</span>
+                          <span>{isCustom ? "🎵" : packCategory ? packCategory.icon : "🔊"}</span>
                           <span className="truncate">
-                            {isCustom ? t("notif_custom_sound") : t(SOUND_LABEL_KEYS[rawValue as SoundType])}
+                            {isCustom
+                              ? t("notif_custom_sound")
+                              : packCategory && packSound
+                              ? `${t(packCategory.labelKey)} ${packSound.index}`
+                              : rawValue}
                           </span>
                         </p>
                       </div>
@@ -203,7 +194,7 @@ export function NotificationsView() {
                           </button>
                           {isCustom && (
                             <button
-                              onClick={() => saveSettings({ [evt.key]: "chime" } as any)}
+                              onClick={() => saveSettings({ [evt.key]: DEFAULT_SOUND_BY_EVENT[evt.key] } as any)}
                               className="btn-ghost text-xs px-3"
                               title={t("notif_use_builtin")}
                             >
@@ -218,25 +209,36 @@ export function NotificationsView() {
                         )}
                         <p className="text-[10px] text-muted px-1">{t("notif_custom_hint")}</p>
 
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {SOUND_VALUES.map((val) => {
-                            const isActive = !isCustom && rawValue === val;
+                        <div className="space-y-2.5 max-h-72 overflow-y-auto pr-0.5">
+                          {SOUND_PACK_CATEGORIES.map((cat) => {
+                            const sounds = SOUND_PACK.filter((s) => s.category === cat.key);
                             return (
-                              <button
-                                key={val}
-                                onClick={() => {
-                                  saveSettings({ [evt.key]: val } as any);
-                                  preview(val);
-                                }}
-                                className={`flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-lg transition-all duration-150 card-press ${
-                                  isActive
-                                    ? "bg-accent text-bg"
-                                    : "bg-bg-soft text-muted hover:text-text border border-border"
-                                }`}
-                              >
-                                <span className="text-base leading-none">{SOUND_ICONS[val]}</span>
-                                <span className="text-[9px] font-semibold leading-tight text-center">{t(SOUND_LABEL_KEYS[val])}</span>
-                              </button>
+                              <div key={cat.key}>
+                                <p className="text-[10px] text-muted font-semibold uppercase tracking-wide px-0.5 mb-1 flex items-center gap-1">
+                                  <span>{cat.icon}</span> {t(cat.labelKey)}
+                                </p>
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  {sounds.map((s) => {
+                                    const isActive = !isCustom && rawValue === s.url;
+                                    return (
+                                      <button
+                                        key={s.id}
+                                        onClick={() => {
+                                          saveSettings({ [evt.key]: s.url } as any);
+                                          preview(s.url);
+                                        }}
+                                        className={`px-1.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-150 card-press ${
+                                          isActive
+                                            ? "bg-accent text-bg"
+                                            : "bg-bg-soft text-muted hover:text-text border border-border"
+                                        }`}
+                                      >
+                                        {s.index}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             );
                           })}
                         </div>
