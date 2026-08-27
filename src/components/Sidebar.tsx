@@ -3,6 +3,7 @@ import type { TabId } from "../App";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useStore } from "../lib/store";
+import { MembershipCard } from "./MembershipCard";
 
 // Mismos items que el menú móvil (Header.tsx) — una sola fuente de verdad
 // de qué pestañas existen realmente en la app, para no inventar secciones
@@ -28,7 +29,7 @@ type Props = {
  *  chicas no se renderiza — Header.tsx sigue manejando la navegación por
  *  menú deslizable, sin duplicar lógica de rutas. */
 export function Sidebar({ active, onChange }: Props) {
-  const { isAdmin, profile, user, signOut } = useAuth();
+  const { isAdmin, profile, user, signOut, hasActiveLicense } = useAuth();
   const status = useStore((s) => s.status);
   const { t } = useI18n();
 
@@ -86,6 +87,15 @@ export function Sidebar({ active, onChange }: Props) {
           </button>
         )}
       </nav>
+
+      {/* Sin licencia activa (nunca tuvo, se le venció, o canceló) — vuelve
+       * a aparecer sola apenas hasActiveLicense es false, sin código extra
+       * en ningún otro lado. */}
+      {!hasActiveLicense && (
+        <div className="px-3 pb-3">
+          <MembershipCard />
+        </div>
+      )}
 
       {/* Account footer */}
       <div className="p-3 border-t border-border">
