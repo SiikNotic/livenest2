@@ -91,7 +91,7 @@ export function MusicView() {
     setAddingSong(true);
     setUrlError(null);
     try {
-      await addSongByUrl(videoId, "tú");
+      await addSongByUrl(videoId, t("music_you"));
       setUrlInput("");
     } catch {
       setUrlError(t("music_add_error"));
@@ -120,7 +120,7 @@ export function MusicView() {
         </div>
         <h2 className="text-sm font-bold mb-1">{t("music_title")}</h2>
         <p className="text-sm text-muted max-w-xs mx-auto">
-          La música es una función solo para miembros. Hazte miembro para dejar que tu chat pida canciones.
+          {t("music_members_only_desc")}
         </p>
       </div>
     );
@@ -311,7 +311,7 @@ export function MusicView() {
               {t("music_viewers_write")}
             </p>
             <div className="bg-bg-soft rounded-xl px-3 py-2.5 font-mono text-sm text-accent border border-border">
-              {cmd} nombre de la canción
+              {cmd} {t("music_command_example_song_name")}
             </div>
             <p className="text-xs text-muted mt-2">
               {t("music_example")} <span className="text-text-soft">{cmd} Don Omar Danza Kuduro</span>

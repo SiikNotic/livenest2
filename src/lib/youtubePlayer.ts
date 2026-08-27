@@ -26,6 +26,8 @@
 // pertenezca a una reproducción ya superada se ignora en vez de volver a
 // tocar el reproductor.
 
+import { useI18n } from "./i18n";
+
 export type PlayerMode = "idle" | "queue" | "background";
 
 export type PlayerState = {
@@ -327,10 +329,11 @@ class YouTubePlayerManager {
           },
           onError: (e: any) => {
             const code = e?.data;
-            let msg = "No se pudo reproducir este vídeo.";
-            if (code === 2) msg = "ID de vídeo no válido.";
-            else if (code === 100) msg = "Vídeo no encontrado o privado.";
-            else if (code === 101 || code === 150) msg = "El propietario no permite reproducir este vídeo.";
+            const tYt = useI18n.getState().t;
+            let msg = tYt("yt_err_generic");
+            if (code === 2) msg = tYt("yt_err_invalid_id");
+            else if (code === 100) msg = tYt("yt_err_not_found");
+            else if (code === 101 || code === 150) msg = tYt("yt_err_not_allowed");
             this.updateState({ error: msg, isPlaying: false });
             if (this.mode === "queue") this.onEndedCallback?.();
           },

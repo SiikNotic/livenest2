@@ -76,7 +76,7 @@ export function NotificationsView() {
   const handleUpload = async (eventKey: string, file: File | undefined) => {
     if (!file) return;
     if (!hasActiveLicense) {
-      setUploadError("Subir sonidos personalizados es solo para miembros.");
+      setUploadError(t("notif_err_upload_members_only"));
       return;
     }
     setUploadError(null);
@@ -87,7 +87,7 @@ export function NotificationsView() {
       await saveSettings({ [eventKey]: url } as any);
       preview(url);
     } catch (err: any) {
-      setUploadError(err?.message || "No se pudo subir el sonido.");
+      setUploadError(err?.message || t("notif_err_upload_generic"));
     } finally {
       setUploadingKey(null);
     }
@@ -190,7 +190,7 @@ export function NotificationsView() {
                             onClick={() => hasActiveLicense && fileInputs.current[evt.key]?.click()}
                             disabled={isUploading || !hasActiveLicense}
                             className="btn-ghost flex-1 text-xs disabled:opacity-60"
-                            title={!hasActiveLicense ? "Solo para miembros" : undefined}
+                            title={!hasActiveLicense ? t("members_only_tooltip") : undefined}
                           >
                             {isUploading ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -213,7 +213,7 @@ export function NotificationsView() {
                         </div>
                         {!hasActiveLicense && (
                           <p className="text-[10px] text-amber-400 px-1 flex items-center gap-1">
-                            <Crown className="w-3 h-3 flex-shrink-0" /> Sonidos personalizados: solo para miembros
+                            <Crown className="w-3 h-3 flex-shrink-0" /> {t("notif_custom_members_only")}
                           </p>
                         )}
                         <p className="text-[10px] text-muted px-1">{t("notif_custom_hint")}</p>

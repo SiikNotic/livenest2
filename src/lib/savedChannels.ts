@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { useI18n } from "./i18n";
 
 export type SavedChannel = {
   id: string;
@@ -29,10 +30,10 @@ export async function addSavedChannel(
   displayName?: string | null
 ): Promise<{ error: string | null }> {
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData?.user) return { error: "Debes iniciar sesión para guardar canales." };
+  if (!userData?.user) return { error: useI18n.getState().t("channels_err_login_required") };
 
   const clean = username.trim().replace(/^@/, "").toLowerCase();
-  if (!clean) return { error: "Introduce un nombre de usuario válido." };
+  if (!clean) return { error: useI18n.getState().t("channels_err_invalid_username") };
 
   const { error } = await supabase.from("saved_channels").upsert(
     {
@@ -45,10 +46,7 @@ export async function addSavedChannel(
 
   if (error) {
     if (error.message.includes("saved_channels_limit_reached")) {
-      return {
-        error:
-          "Alcanzaste el límite de canales guardados de tu plan. Hazte miembro para guardar hasta 5.",
-      };
+      return { error: useI18n.getState().t("channels_err_limit_reached") };
     }
     return { error: error.message };
   }

@@ -22,6 +22,7 @@ export const translations = {
     auth_username_hint: "Así te va a ver el resto de la app. 3-24 caracteres, letras/números/_.",
     auth_username_error: "El usuario debe tener entre 3 y 24 caracteres (letras, números o _).",
     auth_email_label: "Email",
+    auth_email_placeholder: "tu@email.com",
     auth_password_label: "Contraseña",
     auth_show_password: "Mostrar contraseña",
     auth_hide_password: "Ocultar contraseña",
@@ -430,6 +431,95 @@ export const translations = {
     err_invalid_response: "Respuesta inválida del servidor",
     err_open_ws: "No se pudo abrir el WebSocket",
     anon_user: "anónimo",
+
+    // Store errors (ajustes, filtros, plantillas, canciones)
+    store_err_load_settings: "No se pudieron cargar los ajustes",
+    store_err_save_setting: "No se pudo guardar el ajuste. Revisa tu conexión e inténtalo de nuevo.",
+    store_err_load_filters: "No se pudieron cargar los filtros",
+    store_err_load_templates: "No se pudieron cargar las plantillas",
+    store_err_update_song: "No se pudo actualizar la canción. Intenta de nuevo.",
+    store_err_next_song: "No se pudo pasar a la siguiente canción.",
+
+    // Alertas leídas por voz (gift/follow/like/share/sub)
+    voice_alert_gift_default: "un regalo",
+    voice_alert_gift_multi: "{name} envió {gift} x{count}",
+    voice_alert_gift_single: "{name} envió {gift}",
+    voice_alert_follow: "{name} te siguió",
+    voice_alert_like_multi: "{name} dio {count} likes",
+    voice_alert_like_single: "{name} dio un like",
+    voice_alert_share: "{name} compartió el direct",
+    voice_alert_sub: "{name} se suscribió",
+
+    // Auth (errores de auth.tsx)
+    auth_err_account_suspended: "Esta cuenta ha sido suspendida.",
+    auth_err_not_authenticated: "No autenticado",
+    auth_err_username_length: "El usuario debe tener entre 3 y 24 caracteres (letras, números o _).",
+    auth_err_username_taken: "Ese usuario ya está en uso.",
+
+    // Canales guardados
+    channels_err_login_required: "Debes iniciar sesión para guardar canales.",
+    channels_err_invalid_username: "Introduce un nombre de usuario válido.",
+    channels_err_limit_reached: "Alcanzaste el límite de canales guardados de tu plan. Hazte miembro para guardar hasta 5.",
+
+    // Reproductor de YouTube
+    yt_err_generic: "No se pudo reproducir este vídeo.",
+    yt_err_invalid_id: "ID de vídeo no válido.",
+    yt_err_not_found: "Vídeo no encontrado o privado.",
+    yt_err_not_allowed: "El propietario no permite reproducir este vídeo.",
+
+    // Subida de sonidos personalizados
+    upload_err_login_required: "Debes iniciar sesión para subir un sonido personalizado.",
+    upload_err_bad_format: "Formato no soportado. Usa mp3, wav u ogg.",
+    upload_err_too_big: "El archivo supera el límite de 5MB.",
+
+    // Voces (voiceManager)
+    voices_err_member_only_elevenlabs: "ElevenLabs es solo para miembros. Hazte miembro para desbloquearlo.",
+    voices_err_load_elevenlabs: "No se pudieron cargar las voces de ElevenLabs",
+    voices_err_member_only_inworld: "Inworld es solo para miembros. Hazte miembro para desbloquearlo.",
+    voices_err_load_inworld: "No se pudieron cargar las voces de Inworld",
+    voices_err_member_only_voice: "Esta voz es solo para miembros. Hazte miembro para desbloquearla.",
+    voices_err_free_empty_audio: "Voz gratuita: el servidor devolvió audio vacío",
+    voices_err_elevenlabs_empty_audio: "ElevenLabs: el servidor devolvió audio vacío",
+    voices_err_inworld_empty_audio: "Inworld: el servidor devolvió audio vacío",
+
+    // VoicesView
+    members_only_tooltip: "Solo para miembros",
+    voices_locked_short: "Solo miembros",
+    voices_provider_members_only: "{provider} es solo para miembros. Mostrando las voces del navegador mientras tanto.",
+    voices_err_load_list_elevenlabs: "No se pudo cargar tu lista de voces de ElevenLabs: {error}",
+    voices_err_load_list_inworld: "No se pudo cargar tu lista de voces de Inworld: {error}",
+    voices_loading_account_voices: "Cargando voces de tu cuenta...",
+
+    // NotificationsView
+    notif_err_upload_members_only: "Subir sonidos personalizados es solo para miembros.",
+    notif_err_upload_generic: "No se pudo subir el sonido.",
+    notif_custom_members_only: "Sonidos personalizados: solo para miembros",
+
+    // MusicView
+    music_members_only_desc: "La música es una función solo para miembros. Hazte miembro para dejar que tu chat pida canciones.",
+    music_command_example_song_name: "nombre de la canción",
+    music_you: "tú",
+
+    // Dashboard (escritorio/tablet)
+    dash_panel_chat: "Chat en vivo",
+    dash_panel_events: "Alertas",
+    dash_panel_music: "Música",
+    dash_preset_default: "Predeterminado",
+    dash_preset_chat_focus: "Enfoque en Chat",
+    dash_preset_music_focus: "Enfoque en Música",
+    dash_preset_compact: "Compacto",
+    dash_my_layout: "Mi diseño",
+    dash_layout_label: "Diseño",
+    dash_reset: "Restablecer",
+    dash_reset_layout: "Restablecer diseño",
+    dash_close_panel_title: "Cerrar panel",
+    dash_close_panel_aria: "Cerrar panel de {panel}",
+
+    // Filtros / plantillas: placeholders
+    filters_placeholder_user: "@usuario",
+    filters_placeholder_word: "palabra",
+    templates_default_content: "{user} dice: {message}",
+    templates_preset_msg_content: "Mensaje de {user}: {message}",
   },
   en: {
     app_tagline: "Live voice reader",
@@ -448,6 +538,7 @@ export const translations = {
     auth_username_hint: "This is how the rest of the app will see you. 3-24 characters, letters/numbers/_.",
     auth_username_error: "Username must be 3-24 characters (letters, numbers, or _).",
     auth_email_label: "Email",
+    auth_email_placeholder: "you@email.com",
     auth_password_label: "Password",
     auth_show_password: "Show password",
     auth_hide_password: "Hide password",
@@ -840,6 +931,95 @@ export const translations = {
     err_invalid_response: "Invalid server response",
     err_open_ws: "Could not open WebSocket",
     anon_user: "anonymous",
+
+    // Store errors (settings, filters, templates, songs)
+    store_err_load_settings: "Couldn't load your settings",
+    store_err_save_setting: "Couldn't save your setting. Check your connection and try again.",
+    store_err_load_filters: "Couldn't load your filters",
+    store_err_load_templates: "Couldn't load your templates",
+    store_err_update_song: "Couldn't update the song. Try again.",
+    store_err_next_song: "Couldn't skip to the next song.",
+
+    // Voice-read alerts (gift/follow/like/share/sub)
+    voice_alert_gift_default: "a gift",
+    voice_alert_gift_multi: "{name} sent {gift} x{count}",
+    voice_alert_gift_single: "{name} sent {gift}",
+    voice_alert_follow: "{name} followed you",
+    voice_alert_like_multi: "{name} gave {count} likes",
+    voice_alert_like_single: "{name} gave a like",
+    voice_alert_share: "{name} shared the live",
+    voice_alert_sub: "{name} subscribed",
+
+    // Auth (auth.tsx errors)
+    auth_err_account_suspended: "This account has been suspended.",
+    auth_err_not_authenticated: "Not authenticated",
+    auth_err_username_length: "Username must be between 3 and 24 characters (letters, numbers, or _).",
+    auth_err_username_taken: "That username is already taken.",
+
+    // Saved channels
+    channels_err_login_required: "You need to sign in to save channels.",
+    channels_err_invalid_username: "Enter a valid username.",
+    channels_err_limit_reached: "You've reached your plan's saved channel limit. Become a member to save up to 5.",
+
+    // YouTube player
+    yt_err_generic: "Couldn't play this video.",
+    yt_err_invalid_id: "Invalid video ID.",
+    yt_err_not_found: "Video not found or private.",
+    yt_err_not_allowed: "The owner doesn't allow this video to be played.",
+
+    // Custom sound uploads
+    upload_err_login_required: "You need to sign in to upload a custom sound.",
+    upload_err_bad_format: "Unsupported format. Use mp3, wav, or ogg.",
+    upload_err_too_big: "The file exceeds the 5MB limit.",
+
+    // Voices (voiceManager)
+    voices_err_member_only_elevenlabs: "ElevenLabs is for members only. Become a member to unlock it.",
+    voices_err_load_elevenlabs: "Couldn't load your ElevenLabs voices",
+    voices_err_member_only_inworld: "Inworld is for members only. Become a member to unlock it.",
+    voices_err_load_inworld: "Couldn't load your Inworld voices",
+    voices_err_member_only_voice: "This voice is for members only. Become a member to unlock it.",
+    voices_err_free_empty_audio: "Free voice: the server returned empty audio",
+    voices_err_elevenlabs_empty_audio: "ElevenLabs: the server returned empty audio",
+    voices_err_inworld_empty_audio: "Inworld: the server returned empty audio",
+
+    // VoicesView
+    members_only_tooltip: "Members only",
+    voices_locked_short: "Members only",
+    voices_provider_members_only: "{provider} is for members only. Showing browser voices in the meantime.",
+    voices_err_load_list_elevenlabs: "Couldn't load your ElevenLabs voice list: {error}",
+    voices_err_load_list_inworld: "Couldn't load your Inworld voice list: {error}",
+    voices_loading_account_voices: "Loading your account voices...",
+
+    // NotificationsView
+    notif_err_upload_members_only: "Uploading custom sounds is for members only.",
+    notif_err_upload_generic: "Couldn't upload the sound.",
+    notif_custom_members_only: "Custom sounds: members only",
+
+    // MusicView
+    music_members_only_desc: "Music is a members-only feature. Become a member to let your chat request songs.",
+    music_command_example_song_name: "song name",
+    music_you: "you",
+
+    // Dashboard (desktop/tablet)
+    dash_panel_chat: "Live chat",
+    dash_panel_events: "Alerts",
+    dash_panel_music: "Music",
+    dash_preset_default: "Default",
+    dash_preset_chat_focus: "Chat focus",
+    dash_preset_music_focus: "Music focus",
+    dash_preset_compact: "Compact",
+    dash_my_layout: "My layout",
+    dash_layout_label: "Layout",
+    dash_reset: "Reset",
+    dash_reset_layout: "Reset layout",
+    dash_close_panel_title: "Close panel",
+    dash_close_panel_aria: "Close {panel} panel",
+
+    // Filters / templates: placeholders
+    filters_placeholder_user: "@username",
+    filters_placeholder_word: "word",
+    templates_default_content: "{user} says: {message}",
+    templates_preset_msg_content: "Message from {user}: {message}",
   },
 } as const;
 

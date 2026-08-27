@@ -5,6 +5,7 @@ import { GripVertical, RotateCcw } from "lucide-react";
 import { ChatView } from "../views/ChatView";
 import { EventsView } from "../views/EventsView";
 import { MusicView } from "../views/MusicView";
+import { useI18n, type TranslationKey } from "../lib/i18n";
 
 const ReactGridLayout = WidthProvider(GridLayout);
 
@@ -21,10 +22,10 @@ propia grilla de 2 columnas con paneles más altos.
 
 type PanelId = "chat" | "events" | "music";
 
-const PANEL_LABELS: Record<PanelId, string> = {
-  chat: "Chat en vivo",
-  events: "Alertas",
-  music: "Música",
+const PANEL_LABEL_KEYS: Record<PanelId, TranslationKey> = {
+  chat: "dash_panel_chat",
+  events: "dash_panel_events",
+  music: "dash_panel_music",
 };
 
 const PANEL_COMPONENTS: Record<PanelId, React.ComponentType> = {
@@ -53,6 +54,7 @@ function loadStoredLayout(): Layout[] {
 }
 
 export function TabletDashboard() {
+  const { t } = useI18n();
   const [layout, setLayout] = useState<Layout[]>(loadStoredLayout);
 
   const handleLayoutChange = useCallback((next: Layout[]) => {
@@ -75,7 +77,7 @@ export function TabletDashboard() {
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-bg-soft border border-border text-xs font-semibold text-muted hover:text-text transition-colors active:scale-95"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          Restablecer diseño
+          {t("dash_reset_layout")}
         </button>
       </div>
 
@@ -97,7 +99,7 @@ export function TabletDashboard() {
               <div key={id} className="rounded-2xl border border-border bg-bg-card overflow-hidden flex flex-col">
                 <div className="panel-drag-handle flex items-center gap-2 px-4 py-3 border-b border-border bg-bg-soft cursor-move flex-shrink-0 touch-none">
                   <GripVertical className="w-4 h-4 text-muted" />
-                  <span className="text-sm font-bold text-text-soft">{PANEL_LABELS[id]}</span>
+                  <span className="text-sm font-bold text-text-soft">{t(PANEL_LABEL_KEYS[id])}</span>
                 </div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin p-3">
                   <Comp />
