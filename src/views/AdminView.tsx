@@ -173,7 +173,7 @@ export function AdminView() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-base font-bold">Panel de administración</h1>
-            <p className="text-xs text-muted truncate">{profile?.email}</p>
+            <p className="text-xs text-muted truncate">{profile?.username ? `@${profile.username}` : profile?.email}</p>
           </div>
           <button
             onClick={signOut}

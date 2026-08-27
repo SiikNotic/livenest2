@@ -41,6 +41,7 @@ type State = {
 
   connect: (username: string) => Promise<void>;
   disconnect: () => void;
+  resetSession: () => void;
   pushMessage: (username: string, message: string, nickname?: string | null, avatar?: string | null) => Promise<void>;
   speakMessage: (msg: ChatMessage) => Promise<void>;
   stopSpeaking: () => void;
@@ -187,6 +188,47 @@ export const useStore = create<State>((set, get) => ({
       currentSong: null,
       songQueue: [],
     });
+  },
+
+  /** Se llama al cerrar sesión. Sin esto, los ajustes/filtros/plantillas de
+   *  la cuenta anterior seguían en memoria (el store es un singleton que no
+   *  se reinicia solo) — si alguien más entraba en la misma pestaña, o la
+   *  misma persona volvía a entrar, la app mostraba por un momento (o hasta
+   *  la próxima recarga) configuraciones que ya no correspondían a nadie
+   *  logueado, o a la cuenta equivocada. */
+  resetSession: () => {
+    if (connection) {
+      connection.disconnect();
+      connection = null;
+    }
+    voiceManager.stop();
+    ytPlayer.stop();
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    pendingSave = null;
+    set((s) => ({
+      status: "disconnected",
+      username: "",
+      viewerCount: 0,
+      messages: [],
+      events: [],
+      songQueue: [],
+      currentSong: null,
+      settings: null,
+      filters: [],
+      templates: [],
+      unreadCount: 0,
+      error: null,
+      isSpeaking: false,
+      speakQueue: [],
+      processingQueue: false,
+      notLiveUser: null,
+      reconnecting: false,
+      sessionStartedAt: null,
+      ttsEpoch: s.ttsEpoch + 1,
+    }));
   },
 
 

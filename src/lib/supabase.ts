@@ -142,6 +142,7 @@ export type UserRank = "owner" | "staff" | "none";
 export type Profile = {
   id: string;
   email: string;
+  username: string | null;
   role: UserRole;
   rank: UserRank;
   banned: boolean;

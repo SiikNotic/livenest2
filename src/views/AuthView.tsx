@@ -13,10 +13,13 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
+const USERNAME_RE = /^[a-zA-Z0-9_]{3,24}$/;
+
 export function AuthView() {
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,9 +30,17 @@ export function AuthView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (mode === "signup" && !USERNAME_RE.test(username.trim())) {
+      setError("El usuario debe tener entre 3 y 24 caracteres (letras, números o _).");
+      return;
+    }
+
     setLoading(true);
-    const fn = mode === "signin" ? signIn : signUp;
-    const { error } = await fn(email.trim(), password);
+    const { error } =
+      mode === "signin"
+        ? await signIn(email.trim(), password)
+        : await signUp(email.trim(), password, username.trim());
     if (error) {
       setError(error);
       setLoading(false);
@@ -93,6 +104,26 @@ export function AuthView() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "signup" && (
+            <div>
+              <label className="text-xs font-semibold text-muted mb-1.5 block">Usuario</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                <input
+                  type="text"
+                  required
+                  minLength={3}
+                  maxLength={24}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="tu_usuario"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
+                />
+              </div>
+              <p className="text-[11px] text-muted mt-1 px-1">Así te va a ver el resto de la app. 3-24 caracteres, letras/números/_.</p>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-semibold text-muted mb-1.5 block">Email</label>
             <div className="relative">

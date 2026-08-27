@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase, type Profile, type UserLicense } from "./supabase";
+import { useStore } from "./store";
 
 type AuthState = {
   session: Session | null;
@@ -12,11 +13,12 @@ type AuthState = {
   isOwner: boolean;
   hasActiveLicense: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   refreshLicense: () => Promise<void>;
+  setUsername: (username: string) => Promise<{ error: string | null }>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -45,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProfile(null);
         setLicense(null);
+        useStore.getState().resetSession();
       }
     } else {
       // No profile row for this logged-in account (e.g. it was previously
@@ -57,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile({
           id: uid,
           email: email ?? "",
+          username: null,
           role: "user",
           rank: "none",
           banned: false,
@@ -136,16 +140,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
       if (prof?.banned) {
         await supabase.auth.signOut();
+        useStore.getState().resetSession();
         return { error: "Esta cuenta ha sido suspendida." };
       }
     }
     return { error: null };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+  const signUp = useCallback(async (email: string, password: string, username: string) => {
+    // El username viaja como metadata de auth.users (raw_user_meta_data) —
+    // de ahí lo lee handle_new_user() al crear la fila de profiles, para
+    // que quede seteado desde el primer momento en vez de en un segundo
+    // paso separado.
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username: username.trim() } },
+    });
     return { error: error?.message ?? null };
   }, []);
+
+  // Para cuentas que llegaron sin username (Google, o una cuenta vieja de
+  // antes de que este campo existiera) — se guarda en el propio profiles
+  // vía la política RLS que ya deja a cada usuario editar su propia fila.
+  const setUsername = useCallback(async (username: string) => {
+    if (!user) return { error: "No autenticado" };
+    const clean = username.trim();
+    if (!/^[a-zA-Z0-9_]{3,24}$/.test(clean)) {
+      return { error: "El usuario debe tener entre 3 y 24 caracteres (letras, números o _)." };
+    }
+    const { error } = await supabase.from("profiles").update({ username: clean }).eq("id", user.id);
+    if (error) {
+      if (error.code === "23505") return { error: "Ese usuario ya está en uso." };
+      return { error: error.message };
+    }
+    setProfile((p) => (p ? { ...p, username: clean } : p));
+    return { error: null };
+  }, [user]);
 
   const signInWithGoogle = useCallback(async () => {
     // signInWithOAuth performs a full-page redirect to Google on success,
@@ -165,6 +196,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setProfile(null);
     setLicense(null);
+    // Limpia los ajustes/filtros/plantillas/chat de la cuenta que se va —
+    // el store es un singleton que si no, seguía mostrando datos de la
+    // sesión anterior hasta que algo los recargara.
+    useStore.getState().resetSession();
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -196,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         refreshProfile,
         refreshLicense,
+        setUsername,
       }}
     >
       {children}
