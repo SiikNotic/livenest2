@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
-import { MEMBERSHIP_PRICE_ID, MEMBERSHIP_PRICE_LABEL, MEMBERSHIP_DURATION } from "../lib/stripeConfig";
-import { KeyRound, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, Crown, Calendar, Sparkles, LogOut, CreditCard, User as UserIcon } from "lucide-react";
+import { MEMBERSHIP_PRICE_LABEL } from "../lib/stripeConfig";
+import { KeyRound, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, Crown, Calendar, Sparkles, LogOut, User as UserIcon } from "lucide-react";
+import { MembershipCard } from "../components/MembershipCard";
 
 export function UserPanelView() {
   const { user, profile, license, refreshLicense, signOut, setUsername, refreshProfile } = useAuth();
@@ -10,7 +11,6 @@ export function UserPanelView() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelInfo, setCancelInfo] = useState<string | null>(null);
@@ -48,23 +48,6 @@ export function UserPanelView() {
     const data = await res.json().catch(() => ({}));
     return { ok: res.ok, data };
   }, []);
-
-  const handleSubscribe = useCallback(async () => {
-    if (!user) return;
-    setError(null);
-    setCheckoutLoading(true);
-    const { ok, data } = await callEdgeFunction("stripe-checkout", {
-      priceId: MEMBERSHIP_PRICE_ID,
-      userId: user.id,
-      duration: MEMBERSHIP_DURATION,
-    });
-    if (!ok || !data.url) {
-      setError(data.error ?? "No se pudo iniciar el pago. Intenta de nuevo.");
-      setCheckoutLoading(false);
-      return;
-    }
-    window.location.href = data.url;
-  }, [user, callEdgeFunction]);
 
   // Cancela la suscripción REAL en Stripe (no solo la fila local) — llama a
   // la Edge Function stripe-cancel-subscription, que a su vez le pide a
@@ -268,28 +251,7 @@ export function UserPanelView() {
             </p>
           </div>
 
-          {/* Subscribe — single $7.99/mo plan via Stripe */}
-          <div className="glass rounded-2xl p-5 border border-primary/30 bg-primary/5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Crown className="w-5 h-5 text-primary" />
-              <h2 className="text-base font-bold">Hazte miembro</h2>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-extrabold">$7.99</span>
-              <span className="text-sm text-muted">/ mes</span>
-            </div>
-            <p className="text-xs text-muted">
-              Voces premium, canales ilimitados, todos los temas y funciones exclusivas. Cancela cuando quieras.
-            </p>
-            <button
-              onClick={handleSubscribe}
-              disabled={checkoutLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-600 transition-colors disabled:opacity-50"
-            >
-              {checkoutLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-              Suscribirme
-            </button>
-          </div>
+          <MembershipCard />
         </>
       )}
 
