@@ -331,40 +331,15 @@ Deno.serve(async (req: Request) => {
       similarityBoost,
     } = await req.json();
 
-    // Google TTS and ElevenLabs cost compute/quota per request and are
-    // member-only features. Verify the caller (via their own session JWT,
-    // sent in Authorization) actually has an active license before doing
-    // any work — this can't be bypassed by calling the function directly,
-    // since it no longer trusts a bare "provider" field from the client.
-    if (provider === "google" || provider === "elevenlabs" || provider === "inworld") {
-      const authHeader = req.headers.get("Authorization") ?? "";
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-      const callerClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-
-      const { data: userData, error: userError } = await callerClient.auth.getUser();
-      if (userError || !userData?.user) {
-        return new Response(JSON.stringify({ error: "Debes iniciar sesión para usar esta voz." }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const { data: hasLicense, error: licenseError } = await callerClient.rpc("has_active_license", {
-        p_user_id: userData.user.id,
-      });
-      if (licenseError || !hasLicense) {
-        return new Response(
-          JSON.stringify({ error: "Esta voz es solo para miembros. Hazte miembro para desbloquearla." }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-    }
-
-    // ElevenLabs account usage — Owner-only. Checked here, server-side,
-    // against the caller's own JWT-derived session; never trust a role
-    // claimed by the client.
+    // ElevenLabs account usage — Owner-only. Se verifica ANTES del chequeo
+    // general de membresía de abajo: son dos autorizaciones independientes
+    // (esta es "sos el Owner", la otra es "tenés una licencia de miembro
+    // activa"), y el Owner no necesariamente tiene una licencia de miembro
+    // marcada activa en user_licenses (es staff, no necesariamente un
+    // suscriptor). Si este chequeo corriera después del gate de membresía
+    // (como antes), el propio Owner podía quedar bloqueado con "solo para
+    // miembros" antes de llegar siquiera a la verificación que sí debía
+    // dejarlo pasar.
     if (action === "usage" && provider === "elevenlabs") {
       const authHeader = req.headers.get("Authorization") ?? "";
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -396,6 +371,38 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify(usage), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Google TTS, ElevenLabs e Inworld cuestan cómputo/cuota por petición y
+    // son funciones solo para miembros. Se verifica (vía el JWT de sesión
+    // del que llama, en Authorization) que tenga una licencia activa antes
+    // de hacer cualquier trabajo — esto no se puede saltar llamando a la
+    // función directamente, porque ya no confía en un campo "provider"
+    // suelto que mande el cliente.
+    if (provider === "google" || provider === "elevenlabs" || provider === "inworld") {
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const callerClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const { data: userData, error: userError } = await callerClient.auth.getUser();
+      if (userError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Debes iniciar sesión para usar esta voz." }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: hasLicense, error: licenseError } = await callerClient.rpc("has_active_license", {
+        p_user_id: userData.user.id,
+      });
+      if (licenseError || !hasLicense) {
+        return new Response(
+          JSON.stringify({ error: "Esta voz es solo para miembros. Hazte miembro para desbloquearla." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     // List all ElevenLabs voices available on the account (no text needed).
