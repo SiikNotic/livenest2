@@ -21,3 +21,11 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# tsc -b compila vite.config.ts a .js como parte del build de project
+# references (ver tsconfig.node.json) — es un artefacto, no fuente; Vite
+# ya lee vite.config.ts directamente. El .timestamp-*.mjs es un temporal
+# interno de Vite que a veces queda tirado en la raíz tras un build.
+/vite.config.js
+/vite.config.js.timestamp-*.mjs
+*.tsbuildinfo
