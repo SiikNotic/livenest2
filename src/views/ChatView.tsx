@@ -3,6 +3,7 @@ import { useStore } from "../lib/store";
 import { useI18n } from "../lib/i18n";
 import { useAuth } from "../lib/auth";
 import { ytPlayer, type PlayerState } from "../lib/youtubePlayer";
+import { shortenDefaultUsername } from "../lib/voiceManager";
 import { Play, Square, Trash2, Volume2, AlertCircle, Loader2, Tv, RefreshCw, Music, Pause, SkipForward, X } from "lucide-react";
 
 export function ChatView() {
@@ -266,7 +267,7 @@ const MessageBubble = memo(function MessageBubble({
     hour: "2-digit",
     minute: "2-digit",
   });
-  const displayName = message.nickname || message.username;
+  const displayName = message.nickname || shortenDefaultUsername(message.username);
   const showAvatarImg = !!message.avatar && !avatarFailed;
 
   return (
@@ -291,7 +292,7 @@ const MessageBubble = memo(function MessageBubble({
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-1.5 flex-wrap">
           <span className="text-sm font-bold text-text">{displayName}</span>
-          <span className="text-xs text-muted-soft">@{message.username}</span>
+          <span className="text-xs text-muted-soft">@{shortenDefaultUsername(message.username)}</span>
         </div>
         <div className="flex items-center gap-2 mt-0.5 mb-1 flex-wrap">
           <span className="text-[10px] text-muted-soft">{time}</span>

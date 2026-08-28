@@ -94,8 +94,20 @@ export function cleanMessageForSpeech(text: string): string {
   return text.replace(EMOJI_RE, "").replace(/\s+/g, " ").trim();
 }
 
+// TikTok le asigna un @ tipo "user1234567890123" a las cuentas que nunca
+// eligieron uno propio — ese número interno es larguísimo (puede tener 10+
+// dígitos) y queda horrible tanto escrito en el chat/eventos como leído en
+// voz alta. Se acorta a los últimos 3 dígitos ("user456") solo para
+// mostrar/leer — el username real (el que se guarda, el que se usa para
+// filtros o moderación) nunca se toca, esto es puramente cosmético.
+const TIKTOK_DEFAULT_USERNAME_RE = /^user(\d{4,})$/i;
+export function shortenDefaultUsername(name: string): string {
+  const m = name.match(TIKTOK_DEFAULT_USERNAME_RE);
+  return m ? `user${m[1].slice(-3)}` : name;
+}
+
 export function cleanNameForSpeech(name: string): string {
-  return name
+  return shortenDefaultUsername(name)
     .replace(EMOJI_RE, "")
     .replace(/[_\-\.]+/g, " ")
     .replace(/\s+/g, " ")

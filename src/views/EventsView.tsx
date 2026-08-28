@@ -2,6 +2,7 @@ import { useStore } from "../lib/store";
 import { useI18n } from "../lib/i18n";
 import { Gift, Heart, UserPlus, Share2, Crown, Users, Trash2, Sparkles } from "lucide-react";
 import type { LiveEvent, LiveEventType } from "../lib/supabase";
+import { shortenDefaultUsername } from "../lib/voiceManager";
 
 export function EventsView() {
   const events = useStore((s) => s.events);
@@ -115,7 +116,7 @@ export function EventsView() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold truncate">@{event.username}</span>
+            <span className="text-sm font-semibold truncate">@{shortenDefaultUsername(event.username)}</span>
             <span className="text-[10px] text-muted-soft ml-auto tabular-nums">{time}</span>
           </div>
           <p className={`text-sm ${cfg.color} font-medium`}>{detail}</p>

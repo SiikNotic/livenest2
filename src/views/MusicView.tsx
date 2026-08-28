@@ -4,6 +4,7 @@ import { useI18n } from "../lib/i18n";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { ytPlayer, type PlayerState } from "../lib/youtubePlayer";
+import { shortenDefaultUsername } from "../lib/voiceManager";
 import {
   Music, Play, Pause, SkipForward, ListMusic, X, Youtube, Clock,
   ChevronDown, ChevronUp, Settings2, Plus, Link2, AlertCircle, Volume2, Crown,
@@ -346,7 +347,7 @@ export function MusicView() {
                       {song.video_title ?? song.query}
                     </p>
                     <p className="text-xs text-muted truncate">
-                      @{song.username}
+                      @{shortenDefaultUsername(song.username)}
                       {song.video_channel ? ` · ${song.video_channel}` : ""}
                     </p>
                   </div>
@@ -395,7 +396,7 @@ export function MusicView() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{song.video_title ?? song.query}</p>
-                      <p className="text-xs text-muted">@{song.username}</p>
+                      <p className="text-xs text-muted">@{shortenDefaultUsername(song.username)}</p>
                     </div>
                   </div>
                 ))
