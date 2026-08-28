@@ -184,10 +184,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // so this only ever resolves with an error (e.g. misconfiguration or
     // the browser blocking the redirect). A successful flow never reaches
     // the code after this call — the app reloads at redirectTo instead.
+    //
+    // window.location.origin por sí solo NO alcanza en GitHub Pages: la
+    // app vive bajo un subpath (ej. https://siiknotic.github.io/livenest2/),
+    // pero origin solo da "https://siiknotic.github.io" — sin el subpath.
+    // Esa URL no está en la lista de redirects permitidos de Supabase, así
+    // que el login con Google se rechazaba. import.meta.env.BASE_URL es el
+    // mismo "base" configurado en vite.config.ts ("/livenest2/" en prod,
+    // "/" en local), así que sumarlo reconstruye la URL real de la app.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: window.location.origin + import.meta.env.BASE_URL,
       },
     });
     return { error: error?.message ?? null };

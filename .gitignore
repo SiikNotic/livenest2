@@ -27,5 +27,6 @@ dist-ssr
 # ya lee vite.config.ts directamente. El .timestamp-*.mjs es un temporal
 # interno de Vite que a veces queda tirado en la raíz tras un build.
 /vite.config.js
+/vite.config.d.ts
 /vite.config.js.timestamp-*.mjs
 *.tsbuildinfo
