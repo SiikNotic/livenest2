@@ -37,6 +37,13 @@ export function MembershipCard({ className = "" }: { className?: string }) {
           priceId: MEMBERSHIP_PRICE_ID,
           userId: user.id,
           duration: MEMBERSHIP_DURATION,
+          // window.location.origin solo da el dominio (ej.
+          // https://siiknotic.github.io), sin el subpath donde vive la app
+          // en GitHub Pages (/livenest2/) — el edge function no tiene forma
+          // de saber ese subpath por su cuenta, así que se lo mandamos acá
+          // para que Stripe pueda volver a la página correcta después del
+          // pago en vez de un 404.
+          returnBase: window.location.origin + import.meta.env.BASE_URL,
         }),
       });
       const data = await res.json().catch(() => ({}));

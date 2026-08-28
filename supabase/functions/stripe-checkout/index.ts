@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
     }
     const userId = userData.user.id;
 
-    const { priceId, duration } = await req.json();
+    const { priceId, duration, returnBase } = await req.json();
 
     if (!priceId || !duration) {
       return new Response(
@@ -66,7 +66,15 @@ Deno.serve(async (req: Request) => {
     const Stripe = (await import("npm:stripe@17.3.1")).default;
     const stripe = new Stripe(stripeSecretKey);
 
-    const origin = req.headers.get("origin") || "https://wlkzpvfkczkrvuueblfq.supabase.co";
+    // El header "origin" (o el fallback) solo da el dominio, sin ningún
+    // subpath — funciona para un dominio propio o Bolt, pero GitHub Pages
+    // sirve la app bajo /<repo>/ (ej. https://siiknotic.github.io/livenest2/).
+    // El cliente manda ese subpath ya armado en returnBase; si no viene (una
+    // llamada vieja, o directa a la API), se cae al comportamiento anterior.
+    const origin =
+      typeof returnBase === "string" && returnBase.startsWith("https://")
+        ? returnBase.replace(/\/+$/, "")
+        : req.headers.get("origin") || "https://wlkzpvfkczkrvuueblfq.supabase.co";
 
     const session = await stripe.checkout.sessions.create({
       mode: duration === "lifetime" ? "payment" : "subscription",
