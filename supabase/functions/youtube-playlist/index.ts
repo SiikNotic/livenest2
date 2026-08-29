@@ -92,6 +92,13 @@ Deno.serve(async (req: Request) => {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
+        // Sin esto, a veces YouTube responde con la pantalla de "antes de
+        // continuar" (confirmación de cookies/consentimiento) en vez de la
+        // página de la playlist — sobre todo pidiendo desde una IP de
+        // datacenter. Esa pantalla no tiene ningún video adentro, así que
+        // el scrape encontraba 0 resultados y la playlist parecía "privada"
+        // sin serlo. Este valor es el truco estándar para saltearla.
+        Cookie: "CONSENT=YES+cb.20210328-17-p0.en+FX+888",
       },
     });
 
@@ -105,20 +112,33 @@ Deno.serve(async (req: Request) => {
     const html = await res.text();
 
     // Cada video de la playlist aparece en el JSON incrustado de la página
-    // como "playlistVideoRenderer":{"videoId":"XXXXXXXXXXX",...} — se
-    // ancla a ese renderer específico (no a cualquier "videoId" suelto de
-    // la página) para no traer videos recomendados/relacionados que no
-    // son parte de la playlist en sí.
-    const idPattern = /"playlistVideoRenderer":\{"videoId":"([a-zA-Z0-9_-]{11})"/g;
+    // dentro de un bloque "playlistVideoRenderer":{...,"videoId":"XXX",...}.
+    // OJO: no asumir que "videoId" es la primera clave pegada justo después
+    // de la llave — el orden de las claves en ese JSON no está garantizado
+    // (varió para algunas playlists e hizo que el regex viejo, anclado a
+    // esa adyacencia exacta, no encontrara nada y la playlist pareciera
+    // vacía/privada sin estarlo). En vez de eso: ubicar cada aparición del
+    // marcador del renderer y buscar el primer "videoId" dentro de una
+    // ventana razonable después de él — sigue sin traer videos
+    // recomendados/relacionados (que quedan fuera de esos bloques), pero
+    // no depende del orden interno de sus claves.
+    const RENDERER_MARKER = '"playlistVideoRenderer":{';
+    const RENDERER_WINDOW = 2000;
+    const videoIdInWindow = /"videoId":"([a-zA-Z0-9_-]{11})"/;
     const seen = new Set<string>();
     const videoIds: string[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = idPattern.exec(html)) !== null && videoIds.length < MAX_ITEMS) {
-      const id = match[1];
-      if (!seen.has(id)) {
-        seen.add(id);
-        videoIds.push(id);
+    let searchFrom = 0;
+    while (videoIds.length < MAX_ITEMS) {
+      const idx = html.indexOf(RENDERER_MARKER, searchFrom);
+      if (idx === -1) break;
+      const windowStart = idx + RENDERER_MARKER.length;
+      const chunk = html.slice(windowStart, windowStart + RENDERER_WINDOW);
+      const m = chunk.match(videoIdInWindow);
+      if (m && !seen.has(m[1])) {
+        seen.add(m[1]);
+        videoIds.push(m[1]);
       }
+      searchFrom = windowStart;
     }
 
     if (videoIds.length === 0) {
