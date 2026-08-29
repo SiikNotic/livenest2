@@ -114,6 +114,22 @@ Deno.serve(async (req: Request) => {
     // Diagnóstico temporal — se saca apenas se confirme la causa real de
     // por qué el scrape no encuentra videos en ciertas playlists públicas.
     // Va a function_logs, no afecta la respuesta al cliente.
+    // Ronda 2 del diagnóstico: la ronda 1 confirmó que YouTube sí devuelve
+    // la playlist real (título correcto, 125 "videoId" en el HTML), pero
+    // el marcador "playlistVideoRenderer" no aparece ni una vez — YouTube
+    // debe haber renombrado esa clave. Se captura el contexto alrededor de
+    // los primeros "videoId" para ver con qué clave está envuelto ahora.
+    const contexts: string[] = [];
+    {
+      const vidPattern = /"videoId":"/g;
+      let vm: RegExpExecArray | null;
+      let count = 0;
+      while ((vm = vidPattern.exec(html)) !== null && count < 4) {
+        const start = Math.max(0, vm.index - 150);
+        contexts.push(html.slice(start, vm.index + 40));
+        count++;
+      }
+    }
     console.log(
       "[youtube-playlist] diag",
       JSON.stringify({
@@ -127,6 +143,7 @@ Deno.serve(async (req: Request) => {
         videoIdCount: (html.match(/"videoId":"/g) ?? []).length,
         hasConsentPage: html.includes("consent.youtube.com") || html.includes("Before you continue"),
         titleSnippet: (html.match(/<title>([^<]*)<\/title>/) ?? [])[1] ?? null,
+        contexts,
       })
     );
 
