@@ -43,12 +43,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) {
       setProfile(data as Profile);
       if ((data as Profile).banned) {
+        // resetSession() (que limpia live_events/song_requests si seguía
+        // conectada) tiene que correr ANTES de signOut() — una vez cerrada
+        // la sesión, esa limpieza ya no tiene permiso (RLS la descarta en
+        // silencio, 0 filas) y quedaban eventos huérfanos que reaparecían
+        // como "actividad vieja" la próxima vez que alguien entrara.
+        useStore.getState().resetSession();
         await supabase.auth.signOut();
         setSession(null);
         setUser(null);
         setProfile(null);
         setLicense(null);
-        useStore.getState().resetSession();
       }
     } else {
       // No profile row for this logged-in account (e.g. it was previously
@@ -140,8 +145,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("id", data.user.id)
         .maybeSingle();
       if (prof?.banned) {
-        await supabase.auth.signOut();
+        // Mismo orden que en loadProfile: limpiar antes de cerrar sesión.
         useStore.getState().resetSession();
+        await supabase.auth.signOut();
         return { error: useI18n.getState().t("auth_err_account_suspended") };
       }
     }
@@ -202,13 +208,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // resetSession() limpia los ajustes/filtros/plantillas/chat de la
+    // cuenta que se va (el store es un singleton que si no, seguía
+    // mostrando datos de la sesión anterior) — y si seguía conectada a un
+    // canal, también borra live_events/song_requests. Tiene que correr
+    // ANTES de signOut(): una vez cerrada la sesión ya no hay permiso
+    // (RLS) para ese borrado, y quedaban eventos huérfanos que
+    // reaparecían como "actividad vieja" la próxima vez que se entraba.
+    useStore.getState().resetSession();
     await supabase.auth.signOut();
     setProfile(null);
     setLicense(null);
-    // Limpia los ajustes/filtros/plantillas/chat de la cuenta que se va —
-    // el store es un singleton que si no, seguía mostrando datos de la
-    // sesión anterior hasta que algo los recargara.
-    useStore.getState().resetSession();
   }, []);
 
   const refreshProfile = useCallback(async () => {

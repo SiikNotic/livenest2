@@ -68,6 +68,23 @@ let connection: TikTokConnection | null = null;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingSave: Partial<Settings> | null = null;
 
+// Borra en la base los eventos/canciones que quedaron de la conexión que
+// se está cerrando. Antes esto vivía solo dentro de disconnect() (el botón
+// "Desconectar" de la UI) — pero cerrar sesión mientras se seguía conectado
+// (resetSession, ej. al hacer logout o al banear a alguien) nunca pasaba
+// por ahí, así que esas filas quedaban huérfanas en live_events/song_requests
+// y volvían a aparecer como "actividad vieja" la próxima vez que esa cuenta
+// entraba, aunque no estuviera conectada a ningún canal. Se extrae a una
+// función compartida para que ningún camino de "dejar de estar conectado"
+// se la salte, y se le agrega .catch para no perder el error en silencio
+// si la petición falla.
+function clearLiveActivity() {
+  supabase.from("live_events").delete().neq("id", "00000000-0000-0000-0000-000000000000")
+    .then(({ error }) => { if (error) console.error("No se pudo limpiar live_events:", error); });
+  supabase.from("song_requests").delete().in("status", ["queued", "playing"])
+    .then(({ error }) => { if (error) console.error("No se pudo limpiar song_requests:", error); });
+}
+
 export const useStore = create<State>((set, get) => ({
   status: "disconnected",
   username: "",
@@ -176,8 +193,7 @@ export const useStore = create<State>((set, get) => ({
     voiceManager.stop();
     set((s) => ({ speakQueue: [], processingQueue: false, ttsEpoch: s.ttsEpoch + 1 }));
     // Limpiar eventos, canción actual y cola al desconectar
-    supabase.from("live_events").delete().neq("id", "00000000-0000-0000-0000-000000000000").then();
-    supabase.from("song_requests").delete().in("status", ["queued", "playing"]).then();
+    clearLiveActivity();
     set({
       status: "disconnected",
       isSpeaking: false,
@@ -201,6 +217,12 @@ export const useStore = create<State>((set, get) => ({
     if (connection) {
       connection.disconnect();
       connection = null;
+      // Si se cierra sesión (o se banea a la cuenta) mientras seguía
+      // conectada a un canal, hay que limpiar igual que en disconnect() —
+      // si no, esos eventos/canciones quedan huérfanos en la base y
+      // reaparecen como "actividad vieja" la próxima vez que esta cuenta
+      // entre, aunque ya no esté conectada a nada.
+      clearLiveActivity();
     }
     voiceManager.stop();
     ytPlayer.stop();
