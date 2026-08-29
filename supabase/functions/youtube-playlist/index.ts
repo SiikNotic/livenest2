@@ -111,6 +111,25 @@ Deno.serve(async (req: Request) => {
 
     const html = await res.text();
 
+    // Diagnóstico temporal — se saca apenas se confirme la causa real de
+    // por qué el scrape no encuentra videos en ciertas playlists públicas.
+    // Va a function_logs, no afecta la respuesta al cliente.
+    console.log(
+      "[youtube-playlist] diag",
+      JSON.stringify({
+        playlistId,
+        status: res.status,
+        finalUrl: res.url,
+        htmlLen: html.length,
+        hasInitialData: html.includes("ytInitialData"),
+        markerCount: (html.match(/"playlistVideoRenderer"/g) ?? []).length,
+        panelMarkerCount: (html.match(/"playlistPanelVideoRenderer"/g) ?? []).length,
+        videoIdCount: (html.match(/"videoId":"/g) ?? []).length,
+        hasConsentPage: html.includes("consent.youtube.com") || html.includes("Before you continue"),
+        titleSnippet: (html.match(/<title>([^<]*)<\/title>/) ?? [])[1] ?? null,
+      })
+    );
+
     // Cada video de la playlist aparece en el JSON incrustado de la página
     // dentro de un bloque "playlistVideoRenderer":{...,"videoId":"XXX",...}.
     // OJO: no asumir que "videoId" es la primera clave pegada justo después
