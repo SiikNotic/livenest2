@@ -8,6 +8,7 @@ import { shortenDefaultUsername } from "../lib/voiceManager";
 import {
   Music, Play, Pause, SkipForward, ListMusic, X, Youtube, Clock,
   ChevronDown, ChevronUp, Settings2, Plus, Link2, AlertCircle, Volume2, Crown,
+  Loader2, CheckCircle2,
 } from "lucide-react";
 import type { SongRequest } from "../lib/supabase";
 
@@ -23,6 +24,17 @@ function extractVideoId(input: string): string | null {
   return null;
 }
 
+// Solo se trata como playlist un link tipo .../playlist?list=... — un
+// link de un video suelto que de casualidad trae &list= (por venir de
+// dentro de una playlist mientras se mira un video) sigue agregando ESE
+// video nomás, como antes, sin sorprender a nadie con toda la playlist.
+function extractPlaylistId(input: string): string | null {
+  const trimmed = input.trim();
+  if (!/\/playlist(\?|$)/.test(trimmed)) return null;
+  const m = trimmed.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
 export function MusicView() {
   const { hasActiveLicense } = useAuth();
   const settings = useStore((s) => s.settings);
@@ -34,13 +46,16 @@ export function MusicView() {
   const stopMusic = useStore((s) => s.stopMusic);
   const loadSongQueue = useStore((s) => s.loadSongQueue);
   const addSongByUrl = useStore((s) => s.addSongByUrl);
+  const addPlaylistByUrl = useStore((s) => s.addPlaylistByUrl);
   const { t } = useI18n();
 
   const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
+  const [urlNotice, setUrlNotice] = useState<string | null>(null);
   const [addingSong, setAddingSong] = useState(false);
+  const [addingPlaylist, setAddingPlaylist] = useState(false);
   const [history, setHistory] = useState<SongRequest[]>([]);
   const [playerState, setPlayerState] = useState<PlayerState>(ytPlayer.getState());
 
@@ -84,6 +99,28 @@ export function MusicView() {
   async function handleAddUrl() {
     const input = urlInput.trim();
     if (!input) return;
+
+    const playlistId = extractPlaylistId(input);
+    if (playlistId) {
+      setAddingPlaylist(true);
+      setUrlError(null);
+      setUrlNotice(null);
+      try {
+        const { added, total } = await addPlaylistByUrl(playlistId, t("music_you"));
+        if (total === 0) {
+          setUrlError(t("music_playlist_empty"));
+        } else {
+          setUrlNotice(t("music_playlist_added", { added, total }));
+          setUrlInput("");
+        }
+      } catch {
+        setUrlError(t("music_playlist_error"));
+      } finally {
+        setAddingPlaylist(false);
+      }
+      return;
+    }
+
     const videoId = extractVideoId(input);
     if (!videoId) {
       setUrlError(t("music_invalid_link"));
@@ -91,6 +128,7 @@ export function MusicView() {
     }
     setAddingSong(true);
     setUrlError(null);
+    setUrlNotice(null);
     try {
       await addSongByUrl(videoId, t("music_you"));
       setUrlInput("");
@@ -284,21 +322,39 @@ export function MusicView() {
                   onChange={(e) => setUrlInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleAddUrl()}
                   placeholder={t("music_link_placeholder")}
+                  disabled={addingSong || addingPlaylist}
                   className="input pl-9"
                 />
               </div>
               <button
                 onClick={handleAddUrl}
-                disabled={addingSong || !urlInput.trim()}
+                disabled={addingSong || addingPlaylist || !urlInput.trim()}
                 className="w-11 h-11 flex-shrink-0 rounded-xl bg-primary text-bg flex items-center justify-center shadow-md shadow-primary/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 transition-transform"
               >
-                <Plus className="w-5 h-5" />
+                {addingSong || addingPlaylist ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-5 h-5" />
+                )}
               </button>
             </div>
+            <p className="text-[11px] text-muted-soft mt-1.5">{t("music_playlist_hint")}</p>
+            {addingPlaylist && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted bg-bg-soft rounded-lg p-2.5">
+                <Loader2 className="w-3.5 h-3.5 flex-shrink-0 animate-spin" />
+                <span>{t("music_adding_playlist")}</span>
+              </div>
+            )}
             {urlError && (
               <div className="mt-2 flex items-start gap-2 text-xs text-error-400 bg-error/10 rounded-lg p-2.5">
                 <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                 <span>{urlError}</span>
+              </div>
+            )}
+            {urlNotice && (
+              <div className="mt-2 flex items-start gap-2 text-xs text-success-400 bg-success-400/10 rounded-lg p-2.5">
+                <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                <span>{urlNotice}</span>
               </div>
             )}
           </div>

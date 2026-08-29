@@ -59,6 +59,7 @@ type State = {
   addEvent: (type: LiveEvent["type"], username: string, detail?: string, count?: number, nickname?: string) => void;
   handleSongCommand: (username: string, query: string) => Promise<void>;
   addSongByUrl: (videoId: string, username: string) => Promise<void>;
+  addPlaylistByUrl: (playlistId: string, username: string) => Promise<{ added: number; total: number }>;
   updateSongStatus: (id: string, status: SongRequest["status"], extra?: Partial<SongRequest>) => Promise<void>;
   skipSong: () => Promise<void>;
   stopMusic: () => Promise<void>;
@@ -707,6 +708,34 @@ export const useStore = create<State>((set, get) => ({
         set((s) => ({ songQueue: [...s.songQueue, newSong] }));
       }
     }
+  },
+
+  addPlaylistByUrl: async (playlistId: string, username: string) => {
+    const searchUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/youtube-playlist`;
+    const res = await fetch(searchUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ playlistId }),
+    });
+    if (!res.ok) return { added: 0, total: 0 };
+    const result = await res.json().catch(() => ({}));
+    const videoIds: string[] = Array.isArray(result?.videoIds) ? result.videoIds : [];
+    if (videoIds.length === 0) return { added: 0, total: 0 };
+
+    // Uno por uno (no en paralelo) — cada addSongByUrl ya revisa el límite
+    // de la cola antes de insertar, así que apenas se llena se corta solo
+    // sin desperdiciar más consultas a oEmbed/inserts de más.
+    let added = 0;
+    for (const videoId of videoIds) {
+      const maxQueue = get().settings?.max_song_queue ?? 20;
+      if (get().songQueue.length >= maxQueue) break;
+      await get().addSongByUrl(videoId, username);
+      added++;
+    }
+    return { added, total: videoIds.length };
   },
 }));
 
