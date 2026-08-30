@@ -63,6 +63,15 @@ class YouTubePlayerManager {
 
   private mode: PlayerMode = "idle";
   private playToken = 0;
+  // true justo después de pedir loadVideoById() nosotros mismos, hasta que
+  // se consume una vez (ver performLoad/onStateChange e.data===5). Evita
+  // que un evento "cued" (5) DISPARADO POR YOUTUBE SOLO — algo que pasa a
+  // veces justo después de llamar stopVideo(), un quirk conocido de la
+  // IFrame API — dispare nuestro playVideo() y reinicie desde 0 el mismo
+  // video que se acababa de parar. Antes reaccionábamos a CUALQUIER
+  // "cued", viniera de donde viniera; ese era el bug real de "la última
+  // canción vuelve a sonar sola" (ver performStop más abajo).
+  private awaitingAutoplay = false;
 
   /** Llama esto desde App.tsx con un div que SIEMPRE esté montado. */
   attachContainer(div: HTMLDivElement) {
@@ -194,6 +203,7 @@ class YouTubePlayerManager {
       return;
     }
     try {
+      this.awaitingAutoplay = true;
       this.player.loadVideoById(videoId);
       this.player.setVolume(this.volume * 100);
       this.currentVideoId = videoId;
@@ -205,6 +215,10 @@ class YouTubePlayerManager {
   }
 
   private performStop(token: number) {
+    // Se limpia ANTES de llamar stopVideo(): si ese stopVideo() dispara un
+    // "cued" espontáneo (ver comentario de awaitingAutoplay), el handler ya
+    // lo va a encontrar en false y no va a reaccionar.
+    this.awaitingAutoplay = false;
     try { this.player?.stopVideo(); } catch {}
     this.currentVideoId = null;
     if (token !== this.playToken) return;
@@ -283,12 +297,25 @@ class YouTubePlayerManager {
           },
           onStateChange: (e: any) => {
             // YT states: -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
-            if (e.data === 1) this.updateState({ isPlaying: true, error: null });
+            if (e.data === 1) {
+              // Ya arrancó (por loadVideoById solo, o por el playVideo() de
+              // más abajo) — se cierra la ventana de "esperando autoplay".
+              this.awaitingAutoplay = false;
+              this.updateState({ isPlaying: true, error: null });
+            }
             if (e.data === 2) this.updateState({ isPlaying: false });
             if (e.data === 3) this.updateState({ isPlaying: false });
             if (e.data === 5) {
-              // Video is cued and ready — explicitly start playback
-              try { this.player.playVideo(); } catch {}
+              // Solo arrancar si ESTE "cued" corresponde a un loadVideoById
+              // que pedimos nosotros (ver awaitingAutoplay). Un "cued"
+              // espontáneo — como el que a veces sigue a un stopVideo() —
+              // se ignora, así no revive un video que se acaba de parar.
+              if (this.awaitingAutoplay) {
+                this.awaitingAutoplay = false;
+                try { this.player.playVideo(); } catch {}
+              } else {
+                console.log("[ytPlayer] cued espontáneo ignorado (no era un load nuestro)");
+              }
             }
             if (e.data === 0) {
               this.updateState({ isPlaying: false });
