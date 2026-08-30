@@ -96,17 +96,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const lic = data as UserLicense;
       if (lic.expires_at && new Date(lic.expires_at) < new Date()) {
         // Self-heal: write the expiration back to the database, not just
-        // local state, so the admin panel and future redemptions see it too.
-        await supabase
-          .from("user_licenses")
-          .update({ status: "expired", updated_at: new Date().toISOString() })
-          .eq("id", lic.id);
+        // local state, so el panel de admin y futuros canjes también lo
+        // vean. Va por una RPC (no un .update() directo del cliente) —
+        // user_licenses ya no acepta escritura directa de "authenticated",
+        // justamente para que nadie pueda reactivar su propia licencia
+        // vencida a mano.
+        await supabase.rpc("self_heal_expired_license");
         setLicense(null);
+        useStore.getState().setMembership(false);
       } else {
         setLicense(lic);
+        useStore.getState().setMembership(true);
       }
     } else {
       setLicense(null);
+      useStore.getState().setMembership(false);
     }
   }, []);
 
@@ -292,6 +296,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setLicense(null);
     setPasswordRecovery(false);
+    useStore.getState().setMembership(false);
+    useStore.getState().resetTtsUsage();
   }, []);
 
   const refreshProfile = useCallback(async () => {

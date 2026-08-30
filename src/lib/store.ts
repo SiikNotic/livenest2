@@ -13,6 +13,17 @@ const MAX_EVENTS = 200;
 // enorme puede generar mensajes leíbles más rápido de lo que la voz puede
 // leerlos, y la app queda leyendo mensajes de hace varios minutos.
 const MAX_SPEAK_QUEUE = 40;
+// Cuota de mensajes leídos por voz para cuentas sin membresía activa
+// (incluye la prueba gratis de 7 días — mientras esté vigente,
+// hasActiveLicense es true y esta cuota ni se evalúa). Se resetea 30 días
+// después del primer mensaje leído del ciclo — ver increment_tts_usage()
+// en la base, que es la fuente de verdad real del contador.
+export const TTS_FREE_LIMIT = 200;
+const TTS_CYCLE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function isTtsCycleStale(cycleStart: string): boolean {
+  return Date.now() - new Date(cycleStart).getTime() >= TTS_CYCLE_MS;
+}
 
 type State = {
   status: ConnectionStatus;
@@ -39,6 +50,12 @@ type State = {
   // pendientes de leer, esos mensajes quedan ligados a un epoch viejo y
   // processQueue() los descarta en vez de leerlos.
   ttsEpoch: number;
+  // Mirror imperativo de useAuth().hasActiveLicense — store.ts no puede
+  // usar el hook de React (no es un componente), así que auth.tsx empuja
+  // el valor acá cada vez que cambia (ver setMembership). Es lo único que
+  // decide si se evalúa la cuota de mensajes gratis o no.
+  hasActiveLicense: boolean;
+  ttsUsage: { count: number; cycleStart: string } | null;
 
   connect: (username: string) => Promise<void>;
   disconnect: () => void;
@@ -63,6 +80,14 @@ type State = {
   updateSongStatus: (id: string, status: SongRequest["status"], extra?: Partial<SongRequest>) => Promise<void>;
   skipSong: () => Promise<void>;
   stopMusic: () => Promise<void>;
+  setMembership: (hasActiveLicense: boolean) => void;
+  loadTtsUsage: () => Promise<void>;
+  resetTtsUsage: () => void;
+  // true si al usuario le queda cuota (o es miembro, sin límite) — y en ese
+  // caso ya deja contado el mensaje (local al instante, servidor en
+  // segundo plano). false si ya llegó al tope y este mensaje NO debe
+  // leerse.
+  consumeTtsQuota: () => boolean;
 };
 
 let connection: TikTokConnection | null = null;
@@ -106,6 +131,8 @@ export const useStore = create<State>((set, get) => ({
   reconnecting: false,
   sessionStartedAt: null,
   ttsEpoch: 0,
+  hasActiveLicense: false,
+  ttsUsage: null,
 
   connect: async (username: string) => {
     const clean = username.trim().replace(/^@/, "");
@@ -316,6 +343,7 @@ export const useStore = create<State>((set, get) => ({
   speakMessage: async (msg: ChatMessage) => {
     const state = get();
     if (!state.settings) return;
+    if (!get().consumeTtsQuota()) return;
     const text = applyTemplate(msg.message, msg.username, state.templates);
     voiceManager.stop();
     set({ speakQueue: [], processingQueue: false });
@@ -445,6 +473,15 @@ export const useStore = create<State>((set, get) => ({
     // usuario desconectó o cambió de canal mientras esperaba en la cola).
     // Nunca debe leerse — lo descartamos y seguimos con el siguiente.
     if (item.epoch !== state.ttsEpoch) {
+      set((s) => ({ speakQueue: s.speakQueue.slice(1) }));
+      get().processQueue();
+      return;
+    }
+
+    // Cuenta sin membresía activa que ya agotó su cuota gratis del mes —
+    // este mensaje se descarta en silencio (no se lee) y se sigue con el
+    // siguiente, igual que el descarte por epoch de arriba.
+    if (!get().consumeTtsQuota()) {
       set((s) => ({ speakQueue: s.speakQueue.slice(1) }));
       get().processQueue();
       return;
@@ -742,6 +779,49 @@ export const useStore = create<State>((set, get) => ({
       added++;
     }
     return { added, total: videoIds.length };
+  },
+
+  setMembership: (hasActiveLicense: boolean) => set({ hasActiveLicense }),
+
+  loadTtsUsage: async () => {
+    const { data, error } = await supabase.from("tts_usage").select("*").maybeSingle();
+    if (error || !data) {
+      set({ ttsUsage: null });
+      return;
+    }
+    const row = data as { messages_read: number; cycle_start: string };
+    // Si el ciclo guardado ya venció, se muestra en 0 de una — el reset
+    // "de verdad" (escribirlo en la base) recién ocurre en el próximo
+    // mensaje leído, dentro de increment_tts_usage().
+    if (isTtsCycleStale(row.cycle_start)) {
+      set({ ttsUsage: { count: 0, cycleStart: new Date().toISOString() } });
+    } else {
+      set({ ttsUsage: { count: row.messages_read, cycleStart: row.cycle_start } });
+    }
+  },
+
+  resetTtsUsage: () => set({ ttsUsage: null }),
+
+  consumeTtsQuota: () => {
+    const state = get();
+    if (state.hasActiveLicense) return true;
+
+    const usage = state.ttsUsage;
+    const stale = !usage || isTtsCycleStale(usage.cycleStart);
+    const currentCount = stale ? 0 : usage!.count;
+    if (currentCount >= TTS_FREE_LIMIT) return false;
+
+    // Optimista: la barra tiene que bajar en el momento, no cuando vuelva
+    // la respuesta del servidor. Se reconcilia con el valor real de la
+    // base apenas la RPC responde (por si hay otra pestaña/dispositivo
+    // sumando en paralelo).
+    set({ ttsUsage: { count: currentCount + 1, cycleStart: stale ? new Date().toISOString() : usage!.cycleStart } });
+    supabase.rpc("increment_tts_usage").then(({ data, error }) => {
+      if (error || !data) return;
+      const row = data as { messages_read: number; cycle_start: string };
+      set({ ttsUsage: { count: row.messages_read, cycleStart: row.cycle_start } });
+    });
+    return true;
   },
 }));
 

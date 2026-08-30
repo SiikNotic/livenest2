@@ -34,6 +34,7 @@ export default function App() {
   const loadTemplates = useStore((s) => s.loadTemplates);
   const loadEvents = useStore((s) => s.loadEvents);
   const loadSongQueue = useStore((s) => s.loadSongQueue);
+  const loadTtsUsage = useStore((s) => s.loadTtsUsage);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -43,7 +44,8 @@ export default function App() {
     loadTemplates();
     loadEvents();
     loadSongQueue();
-  }, [user, loadSettings, loadFilters, loadTemplates, loadEvents, loadSongQueue]);
+    loadTtsUsage();
+  }, [user, loadSettings, loadFilters, loadTemplates, loadEvents, loadSongQueue, loadTtsUsage]);
 
   useEffect(() => {
     if (playerContainerRef.current) {

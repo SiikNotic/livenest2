@@ -1,9 +1,11 @@
 import { useState, memo, useEffect } from "react";
-import { useStore } from "../lib/store";
+import { useStore, TTS_FREE_LIMIT } from "../lib/store";
+import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { ytPlayer, type PlayerState } from "../lib/youtubePlayer";
 import { shortenDefaultUsername } from "../lib/voiceManager";
-import { Play, Square, Trash2, Volume2, AlertCircle, Loader2, Tv, RefreshCw, Music, Pause, SkipForward, X } from "lucide-react";
+import { requestUpgrade } from "../components/PremiumLock";
+import { Play, Square, Trash2, Volume2, AlertCircle, Loader2, Tv, RefreshCw, Music, Pause, SkipForward, X, Crown } from "lucide-react";
 
 export function ChatView() {
   const status = useStore((s) => s.status);
@@ -17,6 +19,7 @@ export function ChatView() {
   const isSpeaking = useStore((s) => s.isSpeaking);
   const notLiveUser = useStore((s) => s.notLiveUser);
   const reconnecting = useStore((s) => s.reconnecting);
+  const { hasActiveLicense } = useAuth();
   const { t } = useI18n();
 
   const [connectInput, setConnectInput] = useState("");
@@ -125,6 +128,8 @@ export function ChatView() {
         )}
       </div>
 
+      {!hasActiveLicense && <TtsUsageBar />}
+
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold text-text-soft">{t("chat_live_messages")}</h2>
         {messages.length > 0 && (
@@ -224,6 +229,53 @@ function MiniPlayer({
         />
         <span className="w-8">{fmt(duration)}</span>
       </div>
+    </div>
+  );
+}
+
+// Barra de uso gratis de TTS — solo se monta cuando el usuario no tiene
+// membresía activa (la prueba gratis de 7 días cuenta como membresía
+// activa, así que tampoco se ve durante esa semana). Se suscribe directo a
+// ttsUsage en el store, así que baja en tiempo real con cada mensaje que
+// lee la app (consumeTtsQuota actualiza el contador de forma optimista
+// apenas se lee, sin esperar la vuelta del servidor).
+function TtsUsageBar() {
+  const ttsUsage = useStore((s) => s.ttsUsage);
+  const { t, lang } = useI18n();
+  const used = Math.min(ttsUsage?.count ?? 0, TTS_FREE_LIMIT);
+  const pct = Math.min(100, (used / TTS_FREE_LIMIT) * 100);
+  const resetDate = ttsUsage
+    ? new Date(new Date(ttsUsage.cycleStart).getTime() + 30 * 24 * 60 * 60 * 1000)
+    : null;
+
+  return (
+    <div className="card p-0 overflow-hidden animate-fade-in">
+      <div className="px-4 py-2.5 bg-bg-hover/60 border-b border-border">
+        <span className="text-xs font-bold text-muted-soft uppercase tracking-wide">{t("chat_usage_title")}</span>
+      </div>
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span className="font-semibold">{t("chat_usage_tts_label")}</span>
+          <span className="text-muted tabular-nums">{t("chat_usage_count", { used, limit: TTS_FREE_LIMIT })}</span>
+        </div>
+        <div className="h-1.5 rounded-full bg-bg-hover overflow-hidden">
+          <div
+            className={`h-full transition-all duration-300 ${pct >= 100 ? "bg-red-400" : "bg-text"}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        {resetDate && (
+          <p className="text-[10px] text-muted-soft mt-1.5">
+            {t("chat_usage_reset_hint", { date: resetDate.toLocaleDateString(lang === "en" ? "en-US" : "es-ES", { day: "numeric", month: "long" }) })}
+          </p>
+        )}
+      </div>
+      <button
+        onClick={requestUpgrade}
+        className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/15 transition-colors"
+      >
+        <Crown className="w-4 h-4" /> {t("chat_usage_unlimited_premium")}
+      </button>
     </div>
   );
 }

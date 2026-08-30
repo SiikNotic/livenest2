@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
-import { supabase } from "../lib/supabase";
+import { supabase, licenseSourceLabel } from "../lib/supabase";
 import { MEMBERSHIP_PRICE_LABEL } from "../lib/stripeConfig";
 import { isPasswordValid } from "../lib/passwordPolicy";
 import { PasswordRequirements } from "../components/PasswordRequirements";
@@ -258,7 +258,7 @@ export function UserPanelView() {
                 <span className="text-[11px] font-semibold text-muted">{t("account_license_source")}</span>
               </div>
               <p className="text-sm font-bold capitalize">
-                {license.source === "stripe" ? t("license_source_subscription") : t("license_source_key")}
+                {licenseSourceLabel(license.source, t, t("license_source_subscription"))}
               </p>
             </div>
             <div className="rounded-xl bg-bg-soft p-3 border border-border">
@@ -271,6 +271,13 @@ export function UserPanelView() {
               </p>
             </div>
           </div>
+
+          {license.source === "trial" && license.expires_at && (
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs">
+              <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{t("account_trial_banner", { date: fmtDate(license.expires_at, lang) })}</span>
+            </div>
+          )}
 
           {license.source === "stripe" && (
             <div className="pt-2 border-t border-border space-y-2.5">

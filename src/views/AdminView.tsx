@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "../lib/auth";
 import { useI18n, type TranslationKey } from "../lib/i18n";
-import { supabase, type Profile, type LicenseKey, type UserLicense, type UserRank, type RankPermissions } from "../lib/supabase";
+import { supabase, licenseSourceLabel, type Profile, type LicenseKey, type UserLicense, type UserRank, type RankPermissions } from "../lib/supabase";
 import {
   Shield, Users, KeyRound, Plus, Trash2, Copy, Check, Loader2, AlertCircle,
   Clock, CheckCircle2, XCircle, Crown, LogOut, X, Ban, ShieldCheck,
@@ -392,7 +392,7 @@ export function AdminView() {
                   <div className="flex-1 min-w-[140px]">
                     <p className="text-sm font-bold truncate">{l.profile_email}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-muted">{l.source === "stripe" ? "Stripe" : t("license_source_key")}</span>
+                      <span className="text-[10px] text-muted">{licenseSourceLabel(l.source, t)}</span>
                       <span className="text-[10px] text-muted">·</span>
                       <span className="text-[10px] text-muted">{l.expires_at ? fmtDate(l.expires_at) : t("admin_duration_lifetime")}</span>
                     </div>
@@ -816,8 +816,8 @@ function UserModal({
               <p className="text-xs text-muted">
                 {isMember
                   ? license?.expires_at
-                    ? t("admin_expires_on", { date: fmtDate(license.expires_at), source: license.source === "stripe" ? "Stripe" : t("license_source_key") })
-                    : t("admin_lifetime_source", { source: license?.source === "stripe" ? "Stripe" : t("license_source_key") })
+                    ? t("admin_expires_on", { date: fmtDate(license.expires_at), source: licenseSourceLabel(license.source, t) })
+                    : t("admin_lifetime_source", { source: license ? licenseSourceLabel(license.source, t) : "" })
                   : t("admin_user_no_member_access")}
               </p>
             </div>

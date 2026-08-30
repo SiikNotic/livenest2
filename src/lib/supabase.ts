@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { useI18n } from "./i18n";
+import { useI18n, type TranslationKey } from "./i18n";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -173,12 +173,38 @@ export type UserLicense = {
   id: string;
   user_id: string;
   license_key_id: string;
-  source: "stripe" | "key";
+  source: "stripe" | "key" | "trial";
   stripe_subscription_id: string | null;
   stripe_customer_id: string | null;
   expires_at: string | null;
   status: "active" | "expired" | "cancelled";
   auto_renew: boolean;
   created_at: string;
+  updated_at: string;
+};
+
+/** Etiqueta legible para el origen de una licencia — un solo lugar para no
+ *  repetir el mismo ternario de 3 ramas en UserPanelView/AdminView.
+ *  stripeLabel es configurable porque cada pantalla ya venía usando una
+ *  palabra distinta para "stripe" ("Suscripción" en Mi cuenta, "Stripe" en
+ *  el panel de Admin) — no vale la pena unificarlas para esto. */
+export function licenseSourceLabel(
+  source: UserLicense["source"],
+  t: (key: TranslationKey) => string,
+  stripeLabel: string = "Stripe",
+): string {
+  if (source === "trial") return t("license_source_trial");
+  if (source === "stripe") return stripeLabel;
+  return t("license_source_key");
+}
+
+/** Contador de mensajes leídos por voz en el ciclo actual de 30 días —
+ *  solo aplica a cuentas sin membresía activa (ver TTS_FREE_LIMIT en
+ *  store.ts). Fila gestionada íntegramente por la RPC increment_tts_usage;
+ *  el cliente solo la lee. */
+export type TtsUsage = {
+  user_id: string;
+  messages_read: number;
+  cycle_start: string;
   updated_at: string;
 };
