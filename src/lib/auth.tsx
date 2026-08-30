@@ -20,6 +20,16 @@ type AuthState = {
   refreshProfile: () => Promise<void>;
   refreshLicense: () => Promise<void>;
   setUsername: (username: string) => Promise<{ error: string | null }>;
+  // true mientras el usuario está en medio de un flujo de "recuperar
+  // contraseña" (llegó desde el link del email) — App.tsx usa esto para
+  // mostrar la pantalla de "establecer nueva contraseña" en vez del
+  // dashboard normal, aunque supabase-js ya haya creado una sesión válida.
+  passwordRecovery: boolean;
+  clearPasswordRecovery: () => void;
+  sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
+  updateEmail: (newEmail: string) => Promise<{ error: string | null }>;
+  reauthenticateWithPassword: (currentPassword: string) => Promise<{ error: string | null }>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -30,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [license, setLicense] = useState<UserLicense | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   const loadProfile = useCallback(async (uid: string, email?: string) => {
     const { data } = await supabase
@@ -114,8 +125,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, sess) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, sess) => {
       (async () => {
+        // El link de recuperación de contraseña hace que supabase-js cree
+        // una sesión temporal a partir del hash de la URL y dispare este
+        // evento — hay que marcarlo ANTES de nada más, porque de lo
+        // contrario sess?.user ya está seteado y el resto del flujo trata
+        // esto como un login normal, mandando al usuario derecho al
+        // dashboard en vez de a la pantalla de "elegí tu nueva contraseña".
+        if (event === "PASSWORD_RECOVERY") {
+          setPasswordRecovery(true);
+        }
         setSession(sess);
         setUser(sess?.user ?? null);
         if (sess?.user) {
@@ -205,6 +225,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   }, []);
 
+  const clearPasswordRecovery = useCallback(() => {
+    setPasswordRecovery(false);
+  }, []);
+
+  // Envía el email de "recuperar contraseña". redirectTo apunta a la propia
+  // app (mismo patrón que signInWithGoogle: hay que sumar BASE_URL porque en
+  // GitHub Pages vive bajo un subpath) — Supabase agrega ahí el hash con el
+  // token de recuperación, y el listener de arriba lo detecta solo.
+  const sendPasswordReset = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin + import.meta.env.BASE_URL,
+    });
+    return { error: error?.message ?? null };
+  }, []);
+
+  // Usada tanto para completar la recuperación (con la sesión temporal que
+  // crea el link) como para "cambiar contraseña" desde el perfil (después
+  // de reautenticar, ver reauthenticateWithPassword). updateUser NUNCA crea
+  // una cuenta nueva ni cambia auth.users.id — sigue siendo el mismo UUID,
+  // así que la membresía (ligada a ese UUID en user_licenses) no se toca.
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { error: error.message };
+    setPasswordRecovery(false);
+    return { error: null };
+  }, []);
+
+  // Igual que updatePassword: cambia el email en auth.users manteniendo el
+  // mismo id. Supabase envía confirmación al correo nuevo (y, si "secure
+  // email change" está activo en el dashboard, también al viejo) antes de
+  // aplicar el cambio de verdad — hasta que se confirma, sigue funcionando
+  // el login con el email anterior. El trigger sync_profile_email en la
+  // base de datos se encarga de reflejar el nuevo email en profiles cuando
+  // el cambio se confirma.
+  const updateEmail = useCallback(async (newEmail: string) => {
+    const { error } = await supabase.auth.updateUser({ email: newEmail.trim() });
+    return { error: error?.message ?? null };
+  }, []);
+
+  // Antes de dejar cambiar la contraseña actual (o el email) desde el
+  // perfil, se re-verifica la contraseña actual re-autenticando contra el
+  // mismo email — signInWithPassword no crea sesión nueva "de otra cuenta",
+  // solo confirma que quien está en el perfil de verdad conoce la
+  // contraseña vigente, igual que pedir la contraseña actual en cualquier
+  // otro sitio.
+  const reauthenticateWithPassword = useCallback(async (currentPassword: string) => {
+    if (!user?.email) return { error: useI18n.getState().t("auth_err_not_authenticated") };
+    const { error } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    return { error: error?.message ?? null };
+  }, [user]);
+
   const signOut = useCallback(async () => {
     // resetSession() limpia los ajustes/filtros/plantillas/chat de la
     // cuenta que se va (el store es un singleton que si no, seguía
@@ -217,6 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setProfile(null);
     setLicense(null);
+    setPasswordRecovery(false);
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -249,6 +324,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshProfile,
         refreshLicense,
         setUsername,
+        passwordRecovery,
+        clearPasswordRecovery,
+        sendPasswordReset,
+        updatePassword,
+        updateEmail,
+        reauthenticateWithPassword,
       }}
     >
       {children}

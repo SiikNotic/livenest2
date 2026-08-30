@@ -30,6 +30,30 @@ export const translations = {
     auth_signup_button: "Crear cuenta",
     auth_toggle_to_signup: "¿No tienes cuenta? Regístrate",
     auth_toggle_to_signin: "¿Ya tienes cuenta? Inicia sesión",
+    auth_forgot_password_link: "¿Olvidaste tu contraseña?",
+    auth_forgot_title: "Recuperar contraseña",
+    auth_forgot_subtitle: "Te enviamos un enlace para elegir una contraseña nueva.",
+    auth_forgot_button: "Enviar enlace de recuperación",
+    auth_forgot_back_to_signin: "Volver a iniciar sesión",
+    auth_forgot_success: "Si existe una cuenta con ese email, te enviamos un enlace para recuperar tu contraseña. Revisa tu bandeja de entrada (y spam).",
+    auth_recovery_link_expired: "Este enlace de recuperación ya expiró o no es válido. Solicita uno nuevo.",
+    auth_password_requirements_title: "La contraseña debe tener:",
+
+    // Requisitos de contraseña (checklist en vivo — registro y cambio de contraseña)
+    password_rule_min_length: "Mínimo 8 caracteres",
+    password_rule_uppercase: "Una letra mayúscula",
+    password_rule_lowercase: "Una letra minúscula",
+    password_rule_number: "Un número",
+    password_rule_special: "Un carácter especial",
+
+    // Pantalla de "elegir nueva contraseña" (llegada desde el email de recuperación)
+    reset_password_title: "Elegí tu nueva contraseña",
+    reset_password_subtitle: "Ya podés establecer una contraseña nueva para tu cuenta.",
+    reset_password_label: "Nueva contraseña",
+    reset_password_confirm_label: "Confirmar contraseña",
+    reset_password_button: "Guardar nueva contraseña",
+    reset_password_success: "Tu contraseña se actualizó. Ya podés usarla para iniciar sesión.",
+    reset_password_continue: "Continuar a LiveNest",
 
     // Roles (usados en el menú, Mi cuenta y el panel de Admin)
     role_admin: "Administrador",
@@ -460,6 +484,34 @@ export const translations = {
     auth_err_not_authenticated: "No autenticado",
     auth_err_username_length: "El usuario debe tener entre 3 y 24 caracteres (letras, números o _).",
     auth_err_username_taken: "Ese usuario ya está en uso.",
+    auth_err_password_weak: "La contraseña no cumple los requisitos mínimos.",
+    auth_err_password_mismatch: "Las contraseñas no coinciden.",
+    auth_err_current_password_wrong: "La contraseña actual no es correcta.",
+
+    // Pantalla bloqueante "elegí tu nombre de usuario" (cuentas de Google
+    // nuevas, o cuentas viejas sin username) — App.tsx la muestra antes de
+    // dejar entrar al resto de la app.
+    account_username_required_title: "Elegí tu nombre de usuario",
+    account_username_required_desc: "Antes de continuar, necesitamos que elijas un nombre de usuario para tu cuenta.",
+    account_username_required_button: "Continuar",
+
+    // "Cambiar contraseña" / "Establecer contraseña" en el perfil
+    account_change_password_title: "Cambiar contraseña",
+    account_set_password_title: "Establecer contraseña",
+    account_set_password_desc: "Tu cuenta usa Google para iniciar sesión. Podés establecer una contraseña para poder entrar también con email y contraseña.",
+    account_current_password_label: "Contraseña actual",
+    account_new_password_label: "Nueva contraseña",
+    account_confirm_new_password_label: "Confirmar nueva contraseña",
+    account_change_password_button: "Actualizar contraseña",
+    account_change_password_success: "Tu contraseña se actualizó correctamente.",
+
+    // "Cambiar email" en el perfil
+    account_change_email_title: "Cambiar email",
+    account_change_email_desc: "Te enviaremos un enlace de confirmación al nuevo correo antes de aplicar el cambio.",
+    account_new_email_label: "Nuevo email",
+    account_change_email_button: "Cambiar email",
+    account_change_email_success: "Revisa tu nuevo correo para confirmar el cambio. Tu email actual sigue funcionando hasta que confirmes.",
+    account_change_email_in_use: "Ese email ya está en uso por otra cuenta.",
 
     // Canales guardados
     channels_err_login_required: "Debes iniciar sesión para guardar canales.",
@@ -551,6 +603,30 @@ export const translations = {
     auth_signup_button: "Create account",
     auth_toggle_to_signup: "Don't have an account? Sign up",
     auth_toggle_to_signin: "Already have an account? Sign in",
+    auth_forgot_password_link: "Forgot your password?",
+    auth_forgot_title: "Reset password",
+    auth_forgot_subtitle: "We'll send you a link to choose a new password.",
+    auth_forgot_button: "Send reset link",
+    auth_forgot_back_to_signin: "Back to sign in",
+    auth_forgot_success: "If an account exists with that email, we sent a link to reset your password. Check your inbox (and spam folder).",
+    auth_recovery_link_expired: "This recovery link has expired or is invalid. Please request a new one.",
+    auth_password_requirements_title: "Password must have:",
+
+    // Live password requirements checklist (signup and change password)
+    password_rule_min_length: "At least 8 characters",
+    password_rule_uppercase: "One uppercase letter",
+    password_rule_lowercase: "One lowercase letter",
+    password_rule_number: "One number",
+    password_rule_special: "One special character",
+
+    // "Choose new password" screen (reached from the recovery email link)
+    reset_password_title: "Choose your new password",
+    reset_password_subtitle: "You can now set a new password for your account.",
+    reset_password_label: "New password",
+    reset_password_confirm_label: "Confirm password",
+    reset_password_button: "Save new password",
+    reset_password_success: "Your password has been updated. You can now sign in with it.",
+    reset_password_continue: "Continue to LiveNest",
 
     role_admin: "Administrator",
     role_user: "User",
@@ -965,6 +1041,34 @@ export const translations = {
     auth_err_not_authenticated: "Not authenticated",
     auth_err_username_length: "Username must be between 3 and 24 characters (letters, numbers, or _).",
     auth_err_username_taken: "That username is already taken.",
+    auth_err_password_weak: "Password does not meet the minimum requirements.",
+    auth_err_password_mismatch: "Passwords do not match.",
+    auth_err_current_password_wrong: "Current password is incorrect.",
+
+    // Blocking "choose your username" screen (new Google accounts, or old
+    // accounts without a username) — shown by App.tsx before the rest of
+    // the app.
+    account_username_required_title: "Choose your username",
+    account_username_required_desc: "Before continuing, we need you to choose a username for your account.",
+    account_username_required_button: "Continue",
+
+    // "Change password" / "Set password" in the profile
+    account_change_password_title: "Change password",
+    account_set_password_title: "Set password",
+    account_set_password_desc: "Your account signs in with Google. You can set a password to also sign in with email and password.",
+    account_current_password_label: "Current password",
+    account_new_password_label: "New password",
+    account_confirm_new_password_label: "Confirm new password",
+    account_change_password_button: "Update password",
+    account_change_password_success: "Your password has been updated successfully.",
+
+    // "Change email" in the profile
+    account_change_email_title: "Change email",
+    account_change_email_desc: "We'll send a confirmation link to the new email before applying the change.",
+    account_new_email_label: "New email",
+    account_change_email_button: "Change email",
+    account_change_email_success: "Check your new email to confirm the change. Your current email keeps working until you confirm.",
+    account_change_email_in_use: "That email is already in use by another account.",
 
     // Saved channels
     channels_err_login_required: "You need to sign in to save channels.",

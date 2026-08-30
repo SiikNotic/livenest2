@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../lib/auth";
 import { useI18n, type Lang } from "../lib/i18n";
-import { Radio, Lock, Mail, User, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { isPasswordValid } from "../lib/passwordPolicy";
+import { PasswordRequirements } from "../components/PasswordRequirements";
+import { Radio, Lock, Mail, User, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react";
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -17,9 +19,9 @@ function GoogleIcon({ className }: { className?: string }) {
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,24}$/;
 
 export function AuthView() {
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle, sendPasswordReset } = useAuth();
   const { t, lang, setLang } = useI18n();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -28,6 +30,24 @@ export function AuthView() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
+  const [forgotSent, setForgotSent] = useState(false);
+
+  // Un link de recuperación/confirmación vencido o ya usado hace que
+  // Supabase redirija de vuelta acá con #error=access_denied&error_code=
+  // otp_expired en vez de un access_token — sin esto, el usuario solo veía
+  // la pantalla normal de login sin explicación de qué pasó.
+  useEffect(() => {
+    if (window.location.hash.includes("error=")) {
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      if (params.get("error_code") === "otp_expired" || params.get("error") === "access_denied") {
+        setError(t("auth_recovery_link_expired"));
+      }
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const passwordOk = mode !== "signup" || isPasswordValid(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +55,24 @@ export function AuthView() {
 
     if (mode === "signup" && !USERNAME_RE.test(username.trim())) {
       setError(t("auth_username_error"));
+      return;
+    }
+    if (mode === "signup" && !isPasswordValid(password)) {
+      setError(t("auth_err_password_weak"));
+      return;
+    }
+
+    if (mode === "forgot") {
+      setLoading(true);
+      const { error } = await sendPasswordReset(email.trim());
+      setLoading(false);
+      if (error) {
+        setError(error);
+      } else {
+        // Nunca revelamos si el email existe o no — el mensaje es siempre
+        // el mismo, así este flujo no sirve para enumerar cuentas.
+        setForgotSent(true);
+      }
       return;
     }
 
@@ -59,6 +97,12 @@ export function AuthView() {
       setGoogleError(error);
       setGoogleLoading(false);
     }
+  };
+
+  const switchMode = (next: "signin" | "signup" | "forgot") => {
+    setMode(next);
+    setError(null);
+    setForgotSent(false);
   };
 
   return (
@@ -92,136 +136,178 @@ export function AuthView() {
             Live<span className="text-gradient">Nest</span>
           </h1>
           <p className="text-sm text-muted mt-1">
-            {mode === "signin" ? t("auth_signin_subtitle") : t("auth_signup_subtitle")}
+            {mode === "signin"
+              ? t("auth_signin_subtitle")
+              : mode === "signup"
+                ? t("auth_signup_subtitle")
+                : t("auth_forgot_title")}
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={googleLoading}
-          className="w-full py-3 rounded-xl bg-bg-soft border border-border text-sm font-semibold text-text hover:bg-bg-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2.5 card-press"
-        >
-          {googleLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <>
-              <GoogleIcon className="w-4 h-4" />
-              {t("auth_continue_google")}
-            </>
-          )}
-        </button>
+        {mode !== "forgot" && (
+          <>
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
+              className="w-full py-3 rounded-xl bg-bg-soft border border-border text-sm font-semibold text-text hover:bg-bg-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2.5 card-press"
+            >
+              {googleLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <GoogleIcon className="w-4 h-4" />
+                  {t("auth_continue_google")}
+                </>
+              )}
+            </button>
 
-        {googleError && (
-          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-error-400/10 border border-error-400/20 text-error-400 text-xs mt-3">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>{googleError}</span>
-          </div>
+            {googleError && (
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-error-400/10 border border-error-400/20 text-error-400 text-xs mt-3">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{googleError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted">{t("auth_or_email")}</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+          </>
         )}
 
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-muted">{t("auth_or_email")}</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
+        {mode === "forgot" && forgotSent ? (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-success-400/10 border border-success-400/20 text-success-400 text-xs">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{t("auth_forgot_success")}</span>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "forgot" && <p className="text-xs text-muted -mt-1">{t("auth_forgot_subtitle")}</p>}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "signup" && (
+            {mode === "signup" && (
+              <div>
+                <label className="text-xs font-semibold text-muted mb-1.5 block">{t("auth_username_label")}</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                  <input
+                    type="text"
+                    required
+                    minLength={3}
+                    maxLength={24}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder={t("auth_username_placeholder")}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
+                  />
+                </div>
+                <p className="text-[11px] text-muted mt-1 px-1">{t("auth_username_hint")}</p>
+              </div>
+            )}
+
             <div>
-              <label className="text-xs font-semibold text-muted mb-1.5 block">{t("auth_username_label")}</label>
+              <label className="text-xs font-semibold text-muted mb-1.5 block">{t("auth_email_label")}</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                 <input
-                  type="text"
+                  type="email"
                   required
-                  minLength={3}
-                  maxLength={24}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder={t("auth_username_placeholder")}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t("auth_email_placeholder")}
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
                 />
               </div>
-              <p className="text-[11px] text-muted mt-1 px-1">{t("auth_username_hint")}</p>
             </div>
-          )}
 
-          <div>
-            <label className="text-xs font-semibold text-muted mb-1.5 block">{t("auth_email_label")}</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={t("auth_email_placeholder")}
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-muted mb-1.5 block">{t("auth_password_label")}</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-10 py-3 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                tabIndex={-1}
-                aria-label={showPassword ? t("auth_hide_password") : t("auth_show_password")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-muted hover:text-text transition-colors"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
+            {mode !== "forgot" && (
+              <div>
+                <label className="text-xs font-semibold text-muted mb-1.5 block">{t("auth_password_label")}</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={mode === "signup" ? 8 : undefined}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-10 pr-10 py-3 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    tabIndex={-1}
+                    aria-label={showPassword ? t("auth_hide_password") : t("auth_show_password")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-muted hover:text-text transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                {mode === "signup" && (
+                  <>
+                    <p className="text-[11px] text-muted mt-1.5 px-1">{t("auth_password_requirements_title")}</p>
+                    <PasswordRequirements password={password} />
+                  </>
                 )}
-              </button>
-            </div>
-          </div>
-
-          {error && (
-            <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-error-400/10 border border-error-400/20 text-error-400 text-xs">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 card-press"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : mode === "signin" ? (
-              t("auth_signin_button")
-            ) : (
-              t("auth_signup_button")
+              </div>
             )}
-          </button>
-        </form>
+
+            {mode === "signin" && (
+              <div className="text-right -mt-2">
+                <button
+                  type="button"
+                  onClick={() => switchMode("forgot")}
+                  className="text-[11px] text-muted hover:text-primary transition-colors"
+                >
+                  {t("auth_forgot_password_link")}
+                </button>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-error-400/10 border border-error-400/20 text-error-400 text-xs">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || !passwordOk}
+              className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 card-press"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : mode === "signin" ? (
+                t("auth_signin_button")
+              ) : mode === "signup" ? (
+                t("auth_signup_button")
+              ) : (
+                t("auth_forgot_button")
+              )}
+            </button>
+          </form>
+        )}
 
         <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setMode(mode === "signin" ? "signup" : "signin");
-              setError(null);
-            }}
-            className="text-xs text-muted hover:text-primary transition-colors"
-          >
-            {mode === "signin" ? t("auth_toggle_to_signup") : t("auth_toggle_to_signin")}
-          </button>
+          {mode === "forgot" ? (
+            <button onClick={() => switchMode("signin")} className="text-xs text-muted hover:text-primary transition-colors">
+              {t("auth_forgot_back_to_signin")}
+            </button>
+          ) : (
+            <button
+              onClick={() => switchMode(mode === "signin" ? "signup" : "signin")}
+              className="text-xs text-muted hover:text-primary transition-colors"
+            >
+              {mode === "signin" ? t("auth_toggle_to_signup") : t("auth_toggle_to_signin")}
+            </button>
+          )}
         </div>
       </div>
     </div>

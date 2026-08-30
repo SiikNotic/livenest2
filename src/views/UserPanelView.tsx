@@ -3,11 +3,14 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { supabase } from "../lib/supabase";
 import { MEMBERSHIP_PRICE_LABEL } from "../lib/stripeConfig";
-import { KeyRound, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, Crown, Calendar, Sparkles, LogOut, User as UserIcon } from "lucide-react";
+import { isPasswordValid } from "../lib/passwordPolicy";
+import { PasswordRequirements } from "../components/PasswordRequirements";
+import { KeyRound, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, Crown, Calendar, Sparkles, LogOut, User as UserIcon, Lock, Mail } from "lucide-react";
 import { MembershipCard } from "../components/MembershipCard";
 
 export function UserPanelView() {
-  const { user, profile, license, refreshLicense, signOut, setUsername, refreshProfile } = useAuth();
+  const { user, profile, license, refreshLicense, signOut, setUsername, refreshProfile, updatePassword, updateEmail, reauthenticateWithPassword } =
+    useAuth();
   const { t, lang } = useI18n();
   const [keyInput, setKeyInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +38,81 @@ export function UserPanelView() {
     await refreshProfile();
     setUsernameLoading(false);
   }, [usernameInput, setUsername, refreshProfile]);
+
+  // Solo se pide la contraseña actual si la cuenta ya tiene una (identities
+  // trae un 'email' provider) — una cuenta que entró únicamente con Google
+  // no tiene contraseña que verificar, así que ahí este flujo directamente
+  // le permite establecer una por primera vez.
+  const hasPasswordIdentity = !!user?.identities?.some((i) => i.provider === "email");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const handleChangePassword = useCallback(async () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!isPasswordValid(newPassword)) {
+      setPasswordError(t("auth_err_password_weak"));
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError(t("auth_err_password_mismatch"));
+      return;
+    }
+
+    setPasswordLoading(true);
+    if (hasPasswordIdentity) {
+      const { error: reauthError } = await reauthenticateWithPassword(currentPassword);
+      if (reauthError) {
+        setPasswordError(t("auth_err_current_password_wrong"));
+        setPasswordLoading(false);
+        return;
+      }
+    }
+    const { error } = await updatePassword(newPassword);
+    setPasswordLoading(false);
+    if (error) {
+      setPasswordError(error);
+      return;
+    }
+    setPasswordSuccess(t("account_change_password_success"));
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+  }, [hasPasswordIdentity, currentPassword, newPassword, confirmNewPassword, reauthenticateWithPassword, updatePassword, t]);
+
+  const [newEmail, setNewEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  const handleChangeEmail = useCallback(async () => {
+    setEmailError(null);
+    setEmailSuccess(null);
+    if (!newEmail.trim()) return;
+
+    setEmailLoading(true);
+    const { error } = await updateEmail(newEmail.trim());
+    setEmailLoading(false);
+    if (error) {
+      // Supabase devuelve distintos mensajes según versión/proveedor para
+      // "ese email ya pertenece a otra cuenta" — buscamos coincidencias
+      // conocidas para mostrar un mensaje claro en vez del texto crudo.
+      const lower = error.toLowerCase();
+      if (lower.includes("already") || lower.includes("registered") || lower.includes("exists")) {
+        setEmailError(t("account_change_email_in_use"));
+      } else {
+        setEmailError(error);
+      }
+      return;
+    }
+    setEmailSuccess(t("account_change_email_success"));
+    setNewEmail("");
+  }, [newEmail, updateEmail, t]);
 
   const callEdgeFunction = useCallback(async (fnName: string, body: Record<string, unknown> = {}) => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -294,6 +372,120 @@ export function UserPanelView() {
             <span>{success}</span>
           </div>
         )}
+      </div>
+
+      {/* Change / set password */}
+      <div className="glass rounded-2xl p-5 border border-border space-y-3">
+        <div className="flex items-center gap-2">
+          <Lock className="w-5 h-5 text-primary" />
+          <h2 className="text-base font-bold">
+            {hasPasswordIdentity ? t("account_change_password_title") : t("account_set_password_title")}
+          </h2>
+        </div>
+        {!hasPasswordIdentity && <p className="text-xs text-muted">{t("account_set_password_desc")}</p>}
+
+        {hasPasswordIdentity && (
+          <div>
+            <label className="text-xs font-semibold text-muted mb-1.5 block">{t("account_current_password_label")}</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full px-3 py-2.5 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
+            />
+          </div>
+        )}
+
+        <div>
+          <label className="text-xs font-semibold text-muted mb-1.5 block">{t("account_new_password_label")}</label>
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="••••••••"
+            className="w-full px-3 py-2.5 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
+          />
+          <PasswordRequirements password={newPassword} />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-muted mb-1.5 block">{t("account_confirm_new_password_label")}</label>
+          <input
+            type="password"
+            value={confirmNewPassword}
+            onChange={(e) => setConfirmNewPassword(e.target.value)}
+            placeholder="••••••••"
+            className="w-full px-3 py-2.5 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
+          />
+        </div>
+
+        {passwordError && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-error-400/10 border border-error-400/20 text-error-400 text-xs">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{passwordError}</span>
+          </div>
+        )}
+        {passwordSuccess && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-success-400/10 border border-success-400/20 text-success-400 text-xs">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{passwordSuccess}</span>
+          </div>
+        )}
+
+        <button
+          onClick={handleChangePassword}
+          disabled={
+            passwordLoading ||
+            !isPasswordValid(newPassword) ||
+            !confirmNewPassword ||
+            (hasPasswordIdentity && !currentPassword)
+          }
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-600 transition-colors disabled:opacity-50"
+        >
+          {passwordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("account_change_password_button")}
+        </button>
+      </div>
+
+      {/* Change email */}
+      <div className="glass rounded-2xl p-5 border border-border space-y-3">
+        <div className="flex items-center gap-2">
+          <Mail className="w-5 h-5 text-primary" />
+          <h2 className="text-base font-bold">{t("account_change_email_title")}</h2>
+        </div>
+        <p className="text-xs text-muted">{t("account_change_email_desc")}</p>
+
+        <div>
+          <label className="text-xs font-semibold text-muted mb-1.5 block">{t("account_new_email_label")}</label>
+          <input
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder={t("auth_email_placeholder")}
+            className="w-full px-3 py-2.5 rounded-xl bg-bg-soft border border-border text-sm text-text placeholder:text-muted focus:outline-none focus:border-primary/50 transition-colors"
+          />
+        </div>
+
+        {emailError && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-error-400/10 border border-error-400/20 text-error-400 text-xs">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{emailError}</span>
+          </div>
+        )}
+        {emailSuccess && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-success-400/10 border border-success-400/20 text-success-400 text-xs">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{emailSuccess}</span>
+          </div>
+        )}
+
+        <button
+          onClick={handleChangeEmail}
+          disabled={emailLoading || !newEmail.trim()}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-600 transition-colors disabled:opacity-50"
+        >
+          {emailLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("account_change_email_button")}
+        </button>
       </div>
     </div>
   );

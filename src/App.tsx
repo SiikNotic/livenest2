@@ -17,6 +17,8 @@ import { GeneralView } from "./views/GeneralView";
 import { AuthView } from "./views/AuthView";
 import { UserPanelView } from "./views/UserPanelView";
 import { AdminView } from "./views/AdminView";
+import { ResetPasswordView } from "./views/ResetPasswordView";
+import { UsernameRequiredView } from "./views/UsernameRequiredView";
 import { useAuth } from "./lib/auth";
 import { Loader2 } from "lucide-react";
 
@@ -26,7 +28,7 @@ const MAIN_TABS: TabId[] = ["chat", "events", "music"];
 
 export default function App() {
   const [tab, setTab] = useState<TabId>("chat");
-  const { user, loading, isAdmin } = useAuth();
+  const { user, profile, loading, isAdmin, passwordRecovery } = useAuth();
   const loadSettings = useStore((s) => s.loadSettings);
   const loadFilters = useStore((s) => s.loadFilters);
   const loadTemplates = useStore((s) => s.loadTemplates);
@@ -149,6 +151,19 @@ export default function App() {
     );
   }
 
+  // El link de "recuperar contraseña" deja una sesión temporal activa (por
+  // eso NO alcanza con el gate de !user de abajo) — hay que interceptarla
+  // acá, antes que cualquier otra cosa, para que el usuario elija su nueva
+  // contraseña en vez de caer derecho al dashboard con una sesión que en
+  // realidad solo debería servir para ese único propósito.
+  if (passwordRecovery) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <ResetPasswordView />
+      </div>
+    );
+  }
+
   // Sin cuenta, no hay nada que mostrar — todas las pestañas dependen de
   // datos por usuario (settings, filtros, plantillas...), así que antes un
   // visitante sin loguearse podía abrir el menú y navegar a Música/Alertas/
@@ -159,6 +174,19 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <AuthView />
+      </div>
+    );
+  }
+
+  // Cuentas de Google nuevas (y cuentas viejas de antes de que username
+  // fuera obligatorio) llegan hasta acá sin username — no se las deja
+  // seguir hasta que elijan uno, así queda garantizado en todo el resto de
+  // la app que profile.username siempre existe para cualquier usuario
+  // logueado.
+  if (!profile?.username) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <UsernameRequiredView />
       </div>
     );
   }
