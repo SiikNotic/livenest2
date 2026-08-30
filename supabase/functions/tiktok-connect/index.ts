@@ -1,5 +1,3 @@
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -32,6 +30,31 @@ API key de Euler Stream. Como mitigación mínima (sin exigir login), se limita 
 conexiones simultáneas puede tener una misma IP — no es infalible (una IP compartida
 cuenta como una sola), pero corta el abuso más obvio de un script que abre cientos de
 conexiones.
+
+## Optimizaciones de velocidad de conexión (lo que "conectar" tarda de más)
+
+Dos cosas se cambiaron acá específicamente porque el usuario reportó que conectar a un
+canal tardaba bastante:
+
+1. Antes se usaba el paquete npm "@supabase/supabase-js" solo para leer UNA fila de
+   api_secrets. Cargar un paquete npm en un Edge Function de Deno tiene un costo de
+   arranque en frío notable (resolver/cachear todo el árbol de dependencias la primera
+   vez que esa instancia se usa) — un costo que pagaba CADA conexión que le tocara una
+   instancia recién despertada. Se reemplaza por un fetch() directo a PostgREST (la API
+   REST que ya expone Supabase por debajo), sin ninguna dependencia externa — mismo
+   resultado, arranque mucho más liviano.
+
+2. Antes se hacía `await getEulerStreamApiKey(...)` ANTES de aceptar el WebSocket del
+   navegador (Deno.upgradeWebSocket) — es decir, el navegador no veía el socket como
+   "abierto" hasta que volvía esa consulta a la base, sumando ese viaje de red entero al
+   tiempo de "conectar" que ve el streamer, aunque estuviera cacheada la respuesta. Ahora
+   el WebSocket con el navegador se acepta primero, y la key se pide EN PARALELO — recién
+   se espera (si hiciera falta) justo antes de abrir la conexión hacia Euler Stream. El
+   navegador ve "conectado" apenas se acepta su propio socket, sin depender de ese viaje
+   a la base ni de la key ya estar en caché.
+
+La otra pata de la demora — cuánto tarda Euler Stream en resolver el canal contra TikTok
+y empezar a mandar eventos — no depende de este proxy, es tiempo del lado de Euler Stream.
 */
 
 // Reinicia en cada cold start de la función — suficiente para frenar abuso desde un mismo
@@ -46,29 +69,40 @@ function clientIp(req: Request): string {
 }
 
 // La API key de Euler Stream casi nunca cambia, pero antes se consultaba a
-// la base de datos en CADA conexión, bloqueando el WebSocket con el
-// navegador hasta que volvía ese round-trip. Se cachea en memoria del
-// proceso (sobrevive mientras la función siga "caliente" entre invocaciones)
-// con un TTL corto, así que solo la primera conexión de cada instancia paga
-// ese costo — el resto reutiliza la key sin ir a la base.
+// la base de datos en CADA conexión. Se cachea en memoria del proceso
+// (sobrevive mientras la función siga "caliente" entre invocaciones) con un
+// TTL corto, así que solo la primera conexión de cada instancia (o cada 5
+// minutos) paga ese costo — el resto reutiliza la key sin ir a la base.
 let cachedApiKey: { value: string; fetchedAt: number } | null = null;
 const API_KEY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
-async function getEulerStreamApiKey(
-  supabase: ReturnType<typeof createClient>
-): Promise<string | null> {
+// fetch() directo a PostgREST en vez de @supabase/supabase-js — ver el
+// comentario de arriba sobre el costo de arranque en frío de un paquete npm
+// en un Edge Function. Mismo resultado (lee api_secrets con la service
+// role), sin esa dependencia.
+async function getEulerStreamApiKey(supabaseUrl: string, serviceRoleKey: string): Promise<string | null> {
   if (cachedApiKey && Date.now() - cachedApiKey.fetchedAt < API_KEY_CACHE_TTL_MS) {
     return cachedApiKey.value;
   }
-  const { data, error } = await supabase
-    .from("api_secrets")
-    .select("secret_value")
-    .eq("provider", "eulerstream")
-    .eq("key_name", "api_key")
-    .maybeSingle();
-  if (error || !data) return null;
-  cachedApiKey = { value: data.secret_value, fetchedAt: Date.now() };
-  return data.secret_value;
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/api_secrets?provider=eq.eulerstream&key_name=eq.api_key&select=secret_value&limit=1`,
+      {
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+      }
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json()) as Array<{ secret_value?: string }>;
+    const value = rows?.[0]?.secret_value;
+    if (!value) return null;
+    cachedApiKey = { value, fetchedAt: Date.now() };
+    return value;
+  } catch {
+    return null;
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -112,24 +146,12 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false },
-  });
-
-  // En caliente (key ya cacheada, el caso normal) esto resuelve al instante,
-  // sin ir a la base — el WebSocket con el navegador se abre sin ese
-  // round-trip de por medio. Solo la primera conexión de cada instancia (o
-  // cada 5 minutos, cuando vence el cache) paga el costo real de la consulta,
-  // igual que antes — y como sigue siendo `await` antes de aceptar el
-  // WebSocket, un error real de configuración (key faltante) se sigue
-  // reportando como un 500 normal en vez de abrir el socket para cerrarlo al toque.
-  const apiKey = await getEulerStreamApiKey(supabase);
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({ error: "No se encontró la API key de Euler Stream." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
+  // Se dispara ANTES de aceptar el WebSocket del navegador, pero sin esperarla
+  // acá (sin `await`) — así corre en paralelo mientras se acepta el socket, en
+  // vez de sumarse en serie al tiempo que tarda "conectar". Recién se espera
+  // el resultado más abajo, justo antes de necesitarla para abrir la conexión
+  // hacia Euler Stream.
+  const apiKeyPromise = getEulerStreamApiKey(supabaseUrl, serviceRoleKey);
 
   let clientSocket: WebSocket;
   let response: Response;
@@ -171,43 +193,56 @@ Deno.serve(async (req: Request) => {
   };
 
   clientSocket.onopen = () => {
-    const upstreamUrl = new URL("wss://ws.eulerstream.com");
-    upstreamUrl.searchParams.set("apiKey", apiKey);
-    upstreamUrl.searchParams.set("uniqueId", username);
-    upstreamUrl.searchParams.set("schemaVersion", "v2");
-    upstreamUrl.searchParams.set("features.bundleEvents", "true");
-    upstreamUrl.searchParams.set("features.normalizeUniqueId", "true");
-    upstreamUrl.searchParams.set("features.closeInactiveWebSocketAfter", "300");
-
-    try {
-      upstreamSocket = new WebSocket(upstreamUrl.toString());
-    } catch {
-      closeBoth(1011, "No se pudo conectar con Euler Stream");
-      return;
-    }
-
-    upstreamSocket.onopen = () => {
-      for (const msg of queuedFromClient) {
-        try { upstreamSocket!.send(msg as string); } catch { /* ignore */ }
+    (async () => {
+      // En caliente (key ya cacheada, el caso normal) esta promesa ya está
+      // resuelta o resuelve al instante — no suma demora real acá. Solo en
+      // frío (primera conexión de la instancia, o cada 5 min) espera de
+      // verdad el viaje a la base, pero eso ya venía corriendo en paralelo
+      // desde antes de aceptar el WebSocket, no después.
+      const apiKey = await apiKeyPromise;
+      if (!apiKey) {
+        closeBoth(1011, "No se encontró la API key de Euler Stream");
+        return;
       }
-      queuedFromClient.length = 0;
-    };
 
-    upstreamSocket.onmessage = (ev) => {
-      if (!clientClosed) {
-        try { clientSocket.send(ev.data); } catch { /* ignore */ }
+      const upstreamUrl = new URL("wss://ws.eulerstream.com");
+      upstreamUrl.searchParams.set("apiKey", apiKey);
+      upstreamUrl.searchParams.set("uniqueId", username);
+      upstreamUrl.searchParams.set("schemaVersion", "v2");
+      upstreamUrl.searchParams.set("features.bundleEvents", "true");
+      upstreamUrl.searchParams.set("features.normalizeUniqueId", "true");
+      upstreamUrl.searchParams.set("features.closeInactiveWebSocketAfter", "300");
+
+      try {
+        upstreamSocket = new WebSocket(upstreamUrl.toString());
+      } catch {
+        closeBoth(1011, "No se pudo conectar con Euler Stream");
+        return;
       }
-    };
 
-    upstreamSocket.onerror = () => { /* el onclose maneja la lógica */ };
+      upstreamSocket.onopen = () => {
+        for (const msg of queuedFromClient) {
+          try { upstreamSocket!.send(msg as string); } catch { /* ignore */ }
+        }
+        queuedFromClient.length = 0;
+      };
 
-    upstreamSocket.onclose = (ev) => {
-      upstreamClosed = true;
-      if (!clientClosed) {
-        clientClosed = true;
-        try { clientSocket.close(ev.code, ev.reason); } catch { /* ignore */ }
-      }
-    };
+      upstreamSocket.onmessage = (ev) => {
+        if (!clientClosed) {
+          try { clientSocket.send(ev.data); } catch { /* ignore */ }
+        }
+      };
+
+      upstreamSocket.onerror = () => { /* el onclose maneja la lógica */ };
+
+      upstreamSocket.onclose = (ev) => {
+        upstreamClosed = true;
+        if (!clientClosed) {
+          clientClosed = true;
+          try { clientSocket.close(ev.code, ev.reason); } catch { /* ignore */ }
+        }
+      };
+    })();
   };
 
   clientSocket.onmessage = (ev) => {
