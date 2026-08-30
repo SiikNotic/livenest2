@@ -2,33 +2,32 @@
 // Sobrevive a cambios de pestaña porque el contenedor vive en App.tsx (siempre montado),
 // no dentro de MusicView (que se desmonta al cambiar de pestaña).
 //
-// ARQUITECTURA — separación entre cola y fondo
-// ----------------------------------------------
-// Antes, "lo último que se cargó en el reproductor" era el único estado que
-// existía. Al terminar la cola, cualquier callback tardío (la llamada a
-// updateSongStatus es async y tarda un poco) podía volver a disparar
-// playVideo() sobre ESE mismo vídeo — la última canción de la cola quedaba
-// "pegada" reproduciéndose sola, como si fuera música de fondo.
+// ARQUITECTURA
+// ------------
+// El reproductor distingue dos modos:
+//   - "queue" → hay una canción de la cola sonando (loadQueueVideo).
+//   - "idle"  → nada sonando.
 //
-// Ahora el reproductor distingue explícitamente:
-//   - "queue"      → hay una canción de la cola sonando (loadQueueVideo).
-//   - "background" → sonando lo que había antes de que empezara la cola.
-//   - "idle"        → nada sonando.
+// Antes existía un tercer modo "background" que, al vaciarse la cola,
+// retomaba lo último que hubiera estado cargado ANTES de que empezara esa
+// cola — pensado para evitar que la última canción quedara "pegada"
+// reproduciéndose sola (ver más abajo). Se saca: no tenía ningún indicador
+// en la UI ni ajuste que lo controlara, así que cuando de verdad capturaba
+// algo, el resultado era una sorpresa igual de rara — "termina la última
+// canción y arranca sola otra música" — solo que ahora sin ningún aviso de
+// por qué. endQueue() ahora simplemente detiene todo, sin resucitar nada.
 //
-// `backgroundTrack` se captura UNA sola vez, en el instante exacto en que se
-// entra en modo "queue" — nunca se sobreescribe con canciones de la cola.
-// Cuando la cola se vacía de verdad, endQueue() decide: si había fondo
-// sonando, lo retoma; si no, se detiene. Nunca vuelve a cargar la última
-// canción de la cola por accidente.
-//
-// Un "playToken" monotónico protege contra condiciones de carrera: cualquier
-// callback (onEnded, temporizadores, respuestas de red tardías) que
-// pertenezca a una reproducción ya superada se ignora en vez de volver a
-// tocar el reproductor.
+// Lo que sí sigue evitando el bug original de "la última canción se repite
+// sola" son las dos cosas de abajo, que no dependían del modo "background":
+//   - performLoad() no reinicia un vídeo que ya está vivo (reproduciendo,
+//     en pausa o cargando) con el mismo ID — solo lo retoma.
+//   - Un "playToken" monotónico invalida cualquier callback (onEnded,
+//     respuestas de red tardías) que pertenezca a una reproducción ya
+//     superada, así no vuelve a tocar el reproductor por error.
 
 import { useI18n } from "./i18n";
 
-export type PlayerMode = "idle" | "queue" | "background";
+export type PlayerMode = "idle" | "queue";
 
 export type PlayerState = {
   isPlaying: boolean;
@@ -62,9 +61,7 @@ class YouTubePlayerManager {
   private volume = 0.5;
   private onEndedCallback: (() => void) | null = null;
 
-  // --- separación cola / fondo ---
   private mode: PlayerMode = "idle";
-  private backgroundTrack: { videoId: string; wasPlaying: boolean } | null = null;
   private playToken = 0;
 
   /** Llama esto desde App.tsx con un div que SIEMPRE esté montado. */
@@ -97,26 +94,17 @@ class YouTubePlayerManager {
     this.onEndedCallback = cb;
   }
 
-  /** Reproduce una canción de la COLA. La primera vez que se llama viniendo
-   *  de "idle"/"background", guarda lo que hubiera antes como fondo — esa
-   *  captura nunca se vuelve a pisar mientras sigamos en modo cola, así que
-   *  ninguna canción de la cola puede convertirse por accidente en fondo. */
+  /** Reproduce una canción de la COLA. */
   loadQueueVideo(videoId: string) {
     const myToken = ++this.playToken;
-    if (this.mode !== "queue") {
-      this.backgroundTrack = this.currentVideoId
-        ? { videoId: this.currentVideoId, wasPlaying: this.state.isPlaying }
-        : null;
-      this.mode = "queue";
-    }
+    this.mode = "queue";
     this.updateState({ mode: "queue" });
     this.performLoad(videoId, myToken);
   }
 
   /** Se llama cuando la cola queda vacía de verdad (no cuando avanza a la
-   *  siguiente canción — para eso se usa loadQueueVideo otra vez). Nunca
-   *  vuelve a reproducir la última canción de la cola: o restaura el fondo
-   *  que había antes (si estaba sonando), o detiene todo. */
+   *  siguiente canción — para eso se usa loadQueueVideo otra vez). Detiene
+   *  todo, sin volver a reproducir nada por su cuenta. */
   endQueue() {
     // Invalida cualquier callback pendiente de la canción de cola que acaba
     // de terminar — si updateSongStatus tarda en responder y por error
@@ -124,25 +112,14 @@ class YouTubePlayerManager {
     // coincide y se ignora.
     const myToken = ++this.playToken;
     this.mode = "idle";
-    const bg = this.backgroundTrack;
-    this.backgroundTrack = null;
-
-    if (bg && bg.wasPlaying) {
-      this.mode = "background";
-      this.updateState({ mode: "background" });
-      this.performLoad(bg.videoId, myToken);
-    } else {
-      this.updateState({ mode: "idle" });
-      this.performStop(myToken);
-    }
+    this.updateState({ mode: "idle" });
+    this.performStop(myToken);
   }
 
-  /** Detiene todo por completo (usado también al desconectar el canal, por
-   *  ejemplo) y olvida cualquier fondo pendiente de restaurar. */
+  /** Detiene todo por completo (usado también al desconectar el canal, por ejemplo). */
   stop() {
     this.playToken++;
     this.mode = "idle";
-    this.backgroundTrack = null;
     this.updateState({ mode: "idle" });
     this.performStop(this.playToken);
   }
@@ -317,13 +294,10 @@ class YouTubePlayerManager {
               this.updateState({ isPlaying: false });
               // Solo una canción de la COLA que termina le pide a App.tsx
               // que decida el siguiente paso (siguiente canción o fin de
-              // cola). Si lo que terminó fue el fondo restaurado, se deja
-              // así — no hay "siguiente" que decidir automáticamente.
+              // cola) — si por algún motivo terminara un vídeo fuera de ese
+              // modo, no hay "siguiente" que decidir automáticamente.
               if (this.mode === "queue") {
                 this.onEndedCallback?.();
-              } else {
-                this.mode = "idle";
-                this.updateState({ mode: "idle" });
               }
             }
           },
