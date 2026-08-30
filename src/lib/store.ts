@@ -202,6 +202,12 @@ export const useStore = create<State>((set, get) => ({
       reconnecting: false,
       error: null,
       sessionStartedAt: null,
+      // Los mensajes de chat no se guardan en la base (a diferencia de
+      // eventos/canciones) — viven solo en este estado local, así que sin
+      // esto quedaban pegados al desconectar: si después te conectabas a
+      // OTRO canal, sus mensajes viejos seguían mezclados con los nuevos.
+      messages: [],
+      unreadCount: 0,
       events: [],
       currentSong: null,
       songQueue: [],
