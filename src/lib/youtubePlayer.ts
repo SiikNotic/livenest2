@@ -313,8 +313,6 @@ class YouTubePlayerManager {
               if (this.awaitingAutoplay) {
                 this.awaitingAutoplay = false;
                 try { this.player.playVideo(); } catch {}
-              } else {
-                console.log("[ytPlayer] cued espontáneo ignorado (no era un load nuestro)");
               }
             }
             if (e.data === 0) {

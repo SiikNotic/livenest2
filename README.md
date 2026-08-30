@@ -12,7 +12,7 @@ LiveNest connects to your TikTok Live, reads the chat aloud, announces gifts and
 
 - 🗣️ Text-to-speech that survived Microsoft randomly revoking Edge TTS's secret handshake mid-stream
 - 🎁 Gift & follower alerts, so you know exactly when to say "gracias mi rey"
-- 🎵 Chat-requested songs via `!song`, powered by the sacred YouTube search gods
+- 🎵 Chat-requested songs via a customizable command (`!p` by default), powered by the sacred YouTube search gods — or the official YouTube API when it's a whole playlist
 - 📸 Real profile pictures on saved channels — no more mystery-colored initials
 - 🔐 A security review so thorough it found an API key that had been napping in plain text since the beginning of time
 

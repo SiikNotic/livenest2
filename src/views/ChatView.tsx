@@ -1,7 +1,6 @@
 import { useState, memo, useEffect } from "react";
 import { useStore } from "../lib/store";
 import { useI18n } from "../lib/i18n";
-import { useAuth } from "../lib/auth";
 import { ytPlayer, type PlayerState } from "../lib/youtubePlayer";
 import { shortenDefaultUsername } from "../lib/voiceManager";
 import { Play, Square, Trash2, Volume2, AlertCircle, Loader2, Tv, RefreshCw, Music, Pause, SkipForward, X } from "lucide-react";

@@ -230,7 +230,7 @@ class SoundManager {
 
   private playClap(ctx: AudioContext, vol: number) {
     for (let i = 0; i < 4; i++) {
-      const noise = this.noiseBurst(ctx, vol * 0.2, i * 0.06, 0.03);
+      this.noiseBurst(ctx, vol * 0.2, i * 0.06, 0.03);
     }
   }
 
