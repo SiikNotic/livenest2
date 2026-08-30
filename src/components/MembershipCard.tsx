@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { supabase } from "../lib/supabase";
-import { MEMBERSHIP_PRICE_ID, MEMBERSHIP_DURATION } from "../lib/stripeConfig";
+import { MEMBERSHIP_PRICE_ID } from "../lib/stripeConfig";
 import { Crown, CreditCard, Loader2, AlertCircle } from "lucide-react";
 
 /**
@@ -36,7 +36,6 @@ export function MembershipCard({ className = "" }: { className?: string }) {
         body: JSON.stringify({
           priceId: MEMBERSHIP_PRICE_ID,
           userId: user.id,
-          duration: MEMBERSHIP_DURATION,
           // window.location.origin solo da el dominio (ej.
           // https://siiknotic.github.io), sin el subpath donde vive la app
           // en GitHub Pages (/livenest2/) — el edge function no tiene forma

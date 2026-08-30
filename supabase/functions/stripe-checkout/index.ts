@@ -7,11 +7,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const PRICE_MAP: Record<string, { label: string; days: number | null }> = {
-  "7": { label: "7", days: 7 },
-  "30": { label: "30", days: 30 },
-  "365": { label: "365", days: 365 },
-  lifetime: { label: "lifetime", days: null },
+// La duración de la licencia se deriva ÚNICA Y EXCLUSIVAMENTE del priceId
+// real conocido acá abajo — NUNCA del "duration" que mande el cliente.
+// Antes se aceptaba cualquier combinación priceId+duration del body: el
+// mismo precio real de $7.99/mes (público, va compilado en el bundle del
+// frontend) podía mandarse junto con duration:"365" o duration:"lifetime",
+// y el webhook (que solo lee metadata.duration_label, sin verificar contra
+// lo que Stripe realmente cobró) le otorgaba esa duración igual — pagar un
+// mes y quedar con la licencia marcada como vitalicia. Con este mapa fijo,
+// un priceId que no está acá se rechaza directo, y el mode/duration real
+// salen de esta tabla, no de lo que diga el body de la petición.
+const PRICE_CONFIG: Record<string, { label: string; days: number | null; mode: "subscription" | "payment" }> = {
+  "price_1U5rhIFARVVAQecmdoBfi5PQ": { label: "30", days: 30, mode: "subscription" },
 };
 
 Deno.serve(async (req: Request) => {
@@ -46,19 +53,19 @@ Deno.serve(async (req: Request) => {
     }
     const userId = userData.user.id;
 
-    const { priceId, duration, returnBase } = await req.json();
+    const { priceId, returnBase } = await req.json();
 
-    if (!priceId || !duration) {
+    if (!priceId) {
       return new Response(
-        JSON.stringify({ error: "Faltan parámetros: priceId, duration" }),
+        JSON.stringify({ error: "Falta el parámetro: priceId" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const config = PRICE_MAP[duration];
+    const config = PRICE_CONFIG[priceId];
     if (!config) {
       return new Response(
-        JSON.stringify({ error: "Duración no válida. Usa: 7, 30, 365, o lifetime" }),
+        JSON.stringify({ error: "Ese priceId no corresponde a ningún plan de LiveNest." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -77,7 +84,7 @@ Deno.serve(async (req: Request) => {
         : req.headers.get("origin") || "https://wlkzpvfkczkrvuueblfq.supabase.co";
 
     const session = await stripe.checkout.sessions.create({
-      mode: duration === "lifetime" ? "payment" : "subscription",
+      mode: config.mode,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancelled`,
