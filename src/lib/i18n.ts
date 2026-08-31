@@ -41,7 +41,7 @@ export const translations = {
 
     // Legal (Política de Privacidad / Términos de Servicio — public/privacy.html
     // y public/terms.html, páginas estáticas fuera del bundle de la SPA)
-    legal_agree_prefix: "Al crear una cuenta, aceptás nuestros",
+    legal_agree_prefix: "Al crear una cuenta, aceptas nuestros",
     legal_terms: "Términos de Servicio",
     legal_and: "y",
     legal_privacy: "Política de Privacidad",
@@ -57,11 +57,11 @@ export const translations = {
 
     // Pantalla de "elegir nueva contraseña" (llegada desde el email de recuperación)
     reset_password_title: "Elegí tu nueva contraseña",
-    reset_password_subtitle: "Ya podés establecer una contraseña nueva para tu cuenta.",
+    reset_password_subtitle: "Ya puedes establecer una contraseña nueva para tu cuenta.",
     reset_password_label: "Nueva contraseña",
     reset_password_confirm_label: "Confirmar contraseña",
     reset_password_button: "Guardar nueva contraseña",
-    reset_password_success: "Tu contraseña se actualizó. Ya podés usarla para iniciar sesión.",
+    reset_password_success: "Tu contraseña se actualizó. Ya puedes usarla para iniciar sesión.",
     reset_password_continue: "Continuar a LiveNest",
 
     // Roles (usados en el menú, Mi cuenta y el panel de Admin)
@@ -516,7 +516,7 @@ export const translations = {
     // "Cambiar contraseña" / "Establecer contraseña" en el perfil
     account_change_password_title: "Cambiar contraseña",
     account_set_password_title: "Establecer contraseña",
-    account_set_password_desc: "Tu cuenta usa Google para iniciar sesión. Podés establecer una contraseña para poder entrar también con email y contraseña.",
+    account_set_password_desc: "Tu cuenta usa Google para iniciar sesión. Puedes establecer una contraseña para poder entrar también con email y contraseña.",
     account_current_password_label: "Contraseña actual",
     account_new_password_label: "Nueva contraseña",
     account_confirm_new_password_label: "Confirmar nueva contraseña",
