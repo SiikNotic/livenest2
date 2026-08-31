@@ -309,6 +309,23 @@ export function AuthView() {
             </button>
           )}
         </div>
+
+        {/* Páginas legales estáticas (public/terms.html, public/privacy.html) —
+         * viven fuera del bundle de la SPA a propósito, para que sean
+         * accesibles como URL directa aunque la app todavía no haya
+         * cargado (lo que además espera Google para verificar el consent
+         * screen de OAuth). */}
+        <p className="mt-6 text-center text-[11px] text-muted-soft leading-relaxed">
+          {t("legal_agree_prefix")}{" "}
+          <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-primary underline transition-colors">
+            {t("legal_terms")}
+          </a>{" "}
+          {t("legal_and")}{" "}
+          <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-primary underline transition-colors">
+            {t("legal_privacy")}
+          </a>
+          .
+        </p>
       </div>
     </div>
   );

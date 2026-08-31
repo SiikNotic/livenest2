@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Términos de Servicio — LiveNest</title>
+<link rel="icon" href="/favicon.svg" />
+<style>
+  :root {
+    --bg: #0a0b0f; --bg-soft: #14151a; --bg-card: #16181d; --border: #2a2d36;
+    --primary: #06b6d4; --primary-600: #0891b2; --text: #f3f4f6; --text-soft: #d1d5db;
+    --muted: #8b8d96;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; }
+  header.page { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .brand .logo {
+    width: 36px; height: 36px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-600));
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .brand .logo svg { width: 18px; height: 18px; }
+  .brand strong { font-size: 17px; font-weight: 800; }
+  .brand strong span { color: var(--primary); }
+  .lang-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .lang-toggle button {
+    background: var(--bg-soft); color: var(--muted); border: none; padding: 7px 14px;
+    font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .lang-toggle button.active { background: rgba(6,182,212,0.15); color: var(--primary); }
+  h1 { font-size: 26px; font-weight: 800; margin: 28px 0 4px; }
+  .updated { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+  h2 { font-size: 17px; font-weight: 700; margin: 34px 0 10px; color: var(--text); }
+  p, li { color: var(--text-soft); font-size: 14.5px; }
+  ul { padding-left: 22px; margin: 8px 0; }
+  li { margin-bottom: 6px; }
+  a { color: var(--primary); }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; margin: 16px 0; }
+  .placeholder { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin: 10px 0; }
+  .back { display: inline-block; margin-top: 40px; color: var(--muted); font-size: 13px; text-decoration: none; }
+  .back:hover { color: var(--text); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <a class="brand" href="/">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M8 12a4 4 0 0 1 8 0"/><circle cx="12" cy="12" r="1.5" fill="white"/></svg></span>
+      <strong>Live<span>Nest</span></strong>
+    </a>
+    <div class="lang-toggle">
+      <button id="btn-es" class="active" onclick="setLang('es')">🇪🇸 Español</button>
+      <button id="btn-en" onclick="setLang('en')">🇬🇧 English</button>
+    </div>
+  </header>
+
+  <div id="es">
+    <h1>Términos de Servicio</h1>
+    <p class="updated">Última actualización: 30 de agosto de 2026</p>
+
+    <p>Estos términos regulan el uso de LiveNest. Al crear una cuenta o usar la app, aceptás cumplirlos.</p>
+
+    <h2>1. Qué es LiveNest</h2>
+    <p>LiveNest es una herramienta que se conecta a un canal de TikTok Live (el tuyo u otro que elijas) para leer el chat en voz alta, mostrar alertas de regalos/seguidores/likes, y reproducir canciones pedidas por el chat. <strong>LiveNest no está afiliada, patrocinada ni respaldada por TikTok, ByteDance, YouTube, Google, Stripe</strong>, ni por ninguna persona cuya voz pudiera generarse con las funciones de texto a voz integradas.</p>
+
+    <h2>2. Tu cuenta</h2>
+    <p>Sos responsable de mantener segura tu contraseña y de toda actividad que ocurra en tu cuenta. Debés tener al menos 13 años para usar LiveNest.</p>
+
+    <h2>3. Membresía y pagos</h2>
+    <p>La membresía Premium se cobra a través de Stripe con renovación automática (mensual), salvo que la canceles antes. Podés cancelarla en cualquier momento desde "Mi cuenta" — conservás el acceso hasta el final del período que ya pagaste, y no se te vuelve a cobrar. Las cuentas nuevas reciben una semana de prueba gratis; no ofrecemos reembolsos parciales salvo que la ley aplicable lo exija.</p>
+
+    <h2>4. Uso aceptable</h2>
+    <p>No podés usar LiveNest para:</p>
+    <ul>
+      <li>Publicar o generar contenido ilegal, difamatorio, de acoso o discurso de odio.</li>
+      <li><strong>Suplantar a una persona real, identificable, sin su consentimiento</strong> — incluyendo generar audio con las voces de texto a voz que imite la voz de alguien en particular.</li>
+      <li>Violar los términos de servicio de TikTok, YouTube, o cualquier otro servicio de terceros que LiveNest integra.</li>
+      <li>Intentar vulnerar, sobrecargar o eludir las medidas de seguridad de la app (incluida cualquier cuota de uso).</li>
+    </ul>
+
+    <h2>5. Tu contenido</h2>
+    <p>Sos el único responsable del contenido que leés, escribís o generás a través de LiveNest (mensajes, plantillas, audio generado, etc.). No revisamos ese contenido de antemano y no somos responsables por él.</p>
+
+    <h2>6. Disponibilidad del servicio</h2>
+    <p>LiveNest depende de servicios de terceros (la conexión a TikTok Live, YouTube, los proveedores de voz) que pueden cambiar, fallar o discontinuarse sin aviso previo, fuera de nuestro control. No garantizamos disponibilidad ininterrumpida.</p>
+
+    <h2>7. Propiedad intelectual</h2>
+    <p>El código, diseño y marca de LiveNest nos pertenecen. No podés copiar, redistribuir ni crear un servicio derivado sin autorización.</p>
+
+    <h2>8. Suspensión y cierre de cuenta</h2>
+    <p>Podemos suspender o cerrar cuentas que violen estos términos, sin perjuicio de otras acciones que correspondan.</p>
+
+    <h2>9. Limitación de responsabilidad</h2>
+    <p>LiveNest se ofrece "tal cual", sin garantías de ningún tipo. En la medida permitida por la ley, no somos responsables por daños indirectos, incidentales o consecuentes derivados del uso de la app.</p>
+
+    <h2>10. Indemnización</h2>
+    <p>Aceptás indemnizarnos frente a reclamos de terceros que surjan de un uso indebido de LiveNest de tu parte, incluyendo el contenido que generes con ella.</p>
+
+    <h2>11. Ley aplicable</h2>
+    <div class="placeholder">⚠️ Completar: estos términos se rigen por las leyes de [PAÍS/PROVINCIA A DEFINIR] — este campo queda pendiente de tu parte.</div>
+
+    <h2>12. Cambios a estos términos</h2>
+    <p>Si actualizamos estos términos de forma significativa, lo vamos a indicar en esta misma página con la fecha de la nueva versión.</p>
+
+    <h2>13. Contacto</h2>
+    <p>¿Preguntas sobre estos términos? Escribinos a <a href="mailto:livenestapp@gmail.com">livenestapp@gmail.com</a>.</p>
+  </div>
+
+  <div id="en" hidden>
+    <h1>Terms of Service</h1>
+    <p class="updated">Last updated: August 30, 2026</p>
+
+    <p>These terms govern your use of LiveNest. By creating an account or using the app, you agree to follow them.</p>
+
+    <h2>1. What LiveNest is</h2>
+    <p>LiveNest is a tool that connects to a TikTok Live channel (yours or one you choose) to read the chat aloud, show gift/follower/like alerts, and play songs requested by chat. <strong>LiveNest is not affiliated with, sponsored by, or endorsed by TikTok, ByteDance, YouTube, Google, or Stripe</strong>, nor by any individual whose voice might be generated with the integrated text-to-speech features.</p>
+
+    <h2>2. Your account</h2>
+    <p>You're responsible for keeping your password secure and for all activity on your account. You must be at least 13 years old to use LiveNest.</p>
+
+    <h2>3. Membership and payments</h2>
+    <p>Premium membership is billed through Stripe with automatic renewal (monthly), unless you cancel beforehand. You can cancel anytime from "My Account" — you keep access until the end of the period you already paid for, and you won't be charged again. New accounts get a one-week free trial; we don't offer partial refunds unless required by applicable law.</p>
+
+    <h2>4. Acceptable use</h2>
+    <p>You may not use LiveNest to:</p>
+    <ul>
+      <li>Post or generate illegal, defamatory, harassing, or hateful content.</li>
+      <li><strong>Impersonate a real, identifiable person without their consent</strong> — including generating text-to-speech audio that imitates a specific person's voice.</li>
+      <li>Violate the terms of service of TikTok, YouTube, or any other third-party service LiveNest integrates with.</li>
+      <li>Attempt to breach, overload, or circumvent the app's security measures (including any usage quota).</li>
+    </ul>
+
+    <h2>5. Your content</h2>
+    <p>You are solely responsible for content you read, write, or generate through LiveNest (messages, templates, generated audio, etc.). We don't review that content in advance and are not responsible for it.</p>
+
+    <h2>6. Service availability</h2>
+    <p>LiveNest depends on third-party services (the TikTok Live connection, YouTube, voice providers) that may change, fail, or be discontinued without notice, outside our control. We don't guarantee uninterrupted availability.</p>
+
+    <h2>7. Intellectual property</h2>
+    <p>LiveNest's code, design, and brand belong to us. You may not copy, redistribute, or build a derivative service without authorization.</p>
+
+    <h2>8. Suspension and account closure</h2>
+    <p>We may suspend or close accounts that violate these terms, without prejudice to any other action available to us.</p>
+
+    <h2>9. Limitation of liability</h2>
+    <p>LiveNest is provided "as is", without warranties of any kind. To the extent permitted by law, we are not liable for indirect, incidental, or consequential damages arising from use of the app.</p>
+
+    <h2>10. Indemnification</h2>
+    <p>You agree to indemnify us against third-party claims arising from your misuse of LiveNest, including content you generate with it.</p>
+
+    <h2>11. Governing law</h2>
+    <div class="placeholder">⚠️ To complete: these terms are governed by the laws of [COUNTRY/STATE TO BE DEFINED] — this field is left for you to fill in.</div>
+
+    <h2>12. Changes to these terms</h2>
+    <p>If we make significant updates to these terms, we'll note it on this same page along with the date of the new version.</p>
+
+    <h2>13. Contact</h2>
+    <p>Questions about these terms? Write to us at <a href="mailto:livenestapp@gmail.com">livenestapp@gmail.com</a>.</p>
+  </div>
+
+  <a class="back" href="/">← Volver a LiveNest / Back to LiveNest</a>
+</div>
+<script>
+  function setLang(l) {
+    document.getElementById('es').hidden = l !== 'es';
+    document.getElementById('en').hidden = l !== 'en';
+    document.getElementById('btn-es').classList.toggle('active', l === 'es');
+    document.getElementById('btn-en').classList.toggle('active', l === 'en');
+    document.documentElement.lang = l;
+    try { localStorage.setItem('livenest-legal-lang', l); } catch (e) {}
+  }
+  try {
+    var saved = localStorage.getItem('livenest-legal-lang');
+    if (saved === 'en') setLang('en');
+  } catch (e) {}
+</script>
+</body>
+</html>

@@ -363,6 +363,17 @@ export function Header({ active, onChange }: Props) {
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" />
               </button>
+
+              {/* Páginas legales estáticas — fuera del bundle de la SPA (public/). */}
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="text-[10px] text-muted-soft hover:text-muted transition-colors">
+                  {t("legal_terms_short")}
+                </a>
+                <span className="text-[10px] text-muted-soft">·</span>
+                <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-[10px] text-muted-soft hover:text-muted transition-colors">
+                  {t("legal_privacy_short")}
+                </a>
+              </div>
             </div>
           </div>
         </>

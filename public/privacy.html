@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Política de Privacidad — LiveNest</title>
+<link rel="icon" href="/favicon.svg" />
+<style>
+  :root {
+    --bg: #0a0b0f; --bg-soft: #14151a; --bg-card: #16181d; --border: #2a2d36;
+    --primary: #06b6d4; --primary-600: #0891b2; --text: #f3f4f6; --text-soft: #d1d5db;
+    --muted: #8b8d96;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; }
+  header.page { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .brand .logo {
+    width: 36px; height: 36px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-600));
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .brand .logo svg { width: 18px; height: 18px; }
+  .brand strong { font-size: 17px; font-weight: 800; }
+  .brand strong span { color: var(--primary); }
+  .lang-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .lang-toggle button {
+    background: var(--bg-soft); color: var(--muted); border: none; padding: 7px 14px;
+    font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .lang-toggle button.active { background: rgba(6,182,212,0.15); color: var(--primary); }
+  h1 { font-size: 26px; font-weight: 800; margin: 28px 0 4px; }
+  .updated { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+  h2 { font-size: 17px; font-weight: 700; margin: 34px 0 10px; color: var(--text); }
+  p, li { color: var(--text-soft); font-size: 14.5px; }
+  ul { padding-left: 22px; margin: 8px 0; }
+  li { margin-bottom: 6px; }
+  a { color: var(--primary); }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; margin: 16px 0; }
+  .back { display: inline-block; margin-top: 40px; color: var(--muted); font-size: 13px; text-decoration: none; }
+  .back:hover { color: var(--text); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <a class="brand" href="/">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M8 12a4 4 0 0 1 8 0"/><circle cx="12" cy="12" r="1.5" fill="white"/></svg></span>
+      <strong>Live<span>Nest</span></strong>
+    </a>
+    <div class="lang-toggle">
+      <button id="btn-es" class="active" onclick="setLang('es')">🇪🇸 Español</button>
+      <button id="btn-en" onclick="setLang('en')">🇬🇧 English</button>
+    </div>
+  </header>
+
+  <div id="es">
+    <h1>Política de Privacidad</h1>
+    <p class="updated">Última actualización: 30 de agosto de 2026</p>
+
+    <p>En LiveNest ("nosotros", "la app") nos tomamos en serio tu privacidad. Esta política explica qué datos recolectamos cuando usás LiveNest, para qué los usamos, con quién los compartimos y cuáles son tus derechos. Al crear una cuenta o usar la app, aceptás esta política.</p>
+
+    <h2>1. Qué datos recolectamos</h2>
+    <ul>
+      <li><strong>Datos de cuenta:</strong> tu email y nombre de usuario. Si te registrás con Google, recibimos el email y (si lo compartís) el nombre asociado a tu cuenta de Google.</li>
+      <li><strong>Ajustes y contenido que vos creás:</strong> preferencias de voz/tema, filtros de chat, plantillas de mensajes, canales de TikTok que guardás, historial de actividad de tus transmisiones (regalos, follows, likes) y canciones pedidas por tu chat.</li>
+      <li><strong>Mensajes del chat de TikTok:</strong> se procesan <em>en vivo</em>, en tu propio navegador, para leerlos en voz alta y mostrarlos en pantalla — <strong>no los guardamos de forma permanente</strong> en nuestros servidores. Desaparecen al cerrar o recargar la pestaña.</li>
+      <li><strong>Datos de pago:</strong> si te hacés miembro, Stripe procesa el pago directamente — nunca vemos ni guardamos el número de tu tarjeta. Solo guardamos un identificador de cliente/suscripción de Stripe para saber que tu membresía está activa.</li>
+      <li><strong>Datos técnicos:</strong> tu dirección IP se usa brevemente para limitar el abuso de algunas funciones (ej. evitar que un script agote la cuota de conexión a TikTok) — no queda guardada de forma permanente ni vinculada a tu cuenta.</li>
+    </ul>
+
+    <h2>2. Para qué usamos tus datos</h2>
+    <p>Para operar el servicio (conectarte a tu chat, leer mensajes, mostrar alertas, reproducir música), autenticarte, procesar pagos, prevenir abuso, y comunicarnos con vos sobre tu cuenta cuando haga falta.</p>
+
+    <h2>3. Con quién compartimos datos</h2>
+    <p><strong>Nunca vendemos, alquilamos ni compartimos tu información personal con terceros para publicidad o marketing.</strong> Sí trabajamos con los siguientes proveedores, estrictamente para hacer funcionar la app:</p>
+    <div class="card">
+      <ul>
+        <li><strong>Supabase</strong> — hosting de nuestra base de datos, autenticación y backend.</li>
+        <li><strong>Stripe</strong> — procesamiento de pagos de la membresía.</li>
+        <li><strong>ElevenLabs, Inworld AI y Google</strong> — reciben el <em>texto</em> de los mensajes que elegís leer en voz alta, únicamente para generar el audio. No reciben tu identidad ni tus datos de cuenta.</li>
+        <li><strong>Euler Stream</strong> — el servicio que usamos para conectarnos al chat en vivo público de TikTok.</li>
+        <li><strong>YouTube / Google</strong> — para buscar y reproducir las canciones que pide tu chat.</li>
+      </ul>
+    </div>
+
+    <h2>4. Cuánto tiempo guardamos tus datos</h2>
+    <p>Mientras tu cuenta esté activa. Si la borrás (o nos pedís que la borremos), eliminamos tu perfil y todo lo asociado a ella.</p>
+
+    <h2>5. Tus derechos</h2>
+    <p>Podés pedirnos acceder, corregir o borrar tus datos personales en cualquier momento escribiéndonos a <a href="mailto:livenestapp@gmail.com">livenestapp@gmail.com</a>.</p>
+
+    <h2>6. Menores de edad</h2>
+    <p>LiveNest no está dirigido a menores de 13 años y no recolectamos a sabiendas datos de menores de esa edad.</p>
+
+    <h2>7. Cookies y almacenamiento local</h2>
+    <p>Usamos el almacenamiento local de tu navegador (localStorage) únicamente para mantener tu sesión iniciada y recordar preferencias como el idioma o el tema. No usamos cookies de rastreo publicitario ni de terceros.</p>
+
+    <h2>8. Cambios a esta política</h2>
+    <p>Si actualizamos esta política de forma significativa, lo vamos a indicar en esta misma página con la fecha de la nueva versión.</p>
+
+    <h2>9. Contacto</h2>
+    <p>¿Preguntas sobre tu privacidad? Escribinos a <a href="mailto:livenestapp@gmail.com">livenestapp@gmail.com</a>.</p>
+  </div>
+
+  <div id="en" hidden>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: August 30, 2026</p>
+
+    <p>At LiveNest ("we", "the app") we take your privacy seriously. This policy explains what data we collect when you use LiveNest, what we use it for, who we share it with, and what your rights are. By creating an account or using the app, you agree to this policy.</p>
+
+    <h2>1. What data we collect</h2>
+    <ul>
+      <li><strong>Account data:</strong> your email and username. If you sign up with Google, we receive the email and (if shared) the name associated with your Google account.</li>
+      <li><strong>Settings and content you create:</strong> voice/theme preferences, chat filters, message templates, TikTok channels you save, activity history of your streams (gifts, follows, likes), and songs requested by your chat.</li>
+      <li><strong>TikTok chat messages:</strong> processed <em>live</em>, in your own browser, to read them aloud and display them on screen — <strong>we don't store them permanently</strong> on our servers. They disappear when you close or reload the tab.</li>
+      <li><strong>Payment data:</strong> if you subscribe, Stripe processes the payment directly — we never see or store your card number. We only keep a Stripe customer/subscription identifier to know your membership is active.</li>
+      <li><strong>Technical data:</strong> your IP address is used briefly to limit abuse of certain features (e.g. preventing a script from draining our TikTok connection quota) — it isn't stored permanently or linked to your account.</li>
+    </ul>
+
+    <h2>2. What we use your data for</h2>
+    <p>To operate the service (connect you to your chat, read messages, show alerts, play music), authenticate you, process payments, prevent abuse, and reach out about your account when needed.</p>
+
+    <h2>3. Who we share data with</h2>
+    <p><strong>We never sell, rent, or share your personal information with third parties for advertising or marketing.</strong> We do work with the following providers, strictly to make the app work:</p>
+    <div class="card">
+      <ul>
+        <li><strong>Supabase</strong> — hosting for our database, authentication and backend.</li>
+        <li><strong>Stripe</strong> — membership payment processing.</li>
+        <li><strong>ElevenLabs, Inworld AI and Google</strong> — receive the <em>text</em> of messages you choose to read aloud, solely to generate the audio. They don't receive your identity or account data.</li>
+        <li><strong>Euler Stream</strong> — the service we use to connect to TikTok's public live chat.</li>
+        <li><strong>YouTube / Google</strong> — to search and play songs requested by your chat.</li>
+      </ul>
+    </div>
+
+    <h2>4. How long we keep your data</h2>
+    <p>For as long as your account is active. If you delete it (or ask us to), we remove your profile and everything tied to it.</p>
+
+    <h2>5. Your rights</h2>
+    <p>You can ask us to access, correct, or delete your personal data at any time by writing to <a href="mailto:livenestapp@gmail.com">livenestapp@gmail.com</a>.</p>
+
+    <h2>6. Children</h2>
+    <p>LiveNest is not directed at children under 13, and we do not knowingly collect data from anyone under that age.</p>
+
+    <h2>7. Cookies and local storage</h2>
+    <p>We use your browser's local storage (localStorage) solely to keep you signed in and remember preferences like language or theme. We don't use advertising or third-party tracking cookies.</p>
+
+    <h2>8. Changes to this policy</h2>
+    <p>If we make significant updates to this policy, we'll note it on this same page along with the date of the new version.</p>
+
+    <h2>9. Contact</h2>
+    <p>Questions about your privacy? Write to us at <a href="mailto:livenestapp@gmail.com">livenestapp@gmail.com</a>.</p>
+  </div>
+
+  <a class="back" href="/">← Volver a LiveNest / Back to LiveNest</a>
+</div>
+<script>
+  function setLang(l) {
+    document.getElementById('es').hidden = l !== 'es';
+    document.getElementById('en').hidden = l !== 'en';
+    document.getElementById('btn-es').classList.toggle('active', l === 'es');
+    document.getElementById('btn-en').classList.toggle('active', l === 'en');
+    document.documentElement.lang = l;
+    try { localStorage.setItem('livenest-legal-lang', l); } catch (e) {}
+  }
+  try {
+    var saved = localStorage.getItem('livenest-legal-lang');
+    if (saved === 'en') setLang('en');
+  } catch (e) {}
+</script>
+</body>
+</html>

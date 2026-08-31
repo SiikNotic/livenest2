@@ -112,6 +112,17 @@ export function Sidebar({ active, onChange }: Props) {
           <LogOut className="w-3.5 h-3.5" />
           {t("logout")}
         </button>
+
+        {/* Páginas legales estáticas — fuera del bundle de la SPA (public/). */}
+        <div className="flex items-center justify-center gap-2 mt-2 pt-2 border-t border-border-soft">
+          <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="text-[10px] text-muted-soft hover:text-muted transition-colors">
+            {t("legal_terms_short")}
+          </a>
+          <span className="text-[10px] text-muted-soft">·</span>
+          <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-[10px] text-muted-soft hover:text-muted transition-colors">
+            {t("legal_privacy_short")}
+          </a>
+        </div>
       </div>
     </aside>
   );

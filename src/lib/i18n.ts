@@ -39,6 +39,15 @@ export const translations = {
     auth_recovery_link_expired: "Este enlace de recuperación ya expiró o no es válido. Solicita uno nuevo.",
     auth_password_requirements_title: "La contraseña debe tener:",
 
+    // Legal (Política de Privacidad / Términos de Servicio — public/privacy.html
+    // y public/terms.html, páginas estáticas fuera del bundle de la SPA)
+    legal_agree_prefix: "Al crear una cuenta, aceptás nuestros",
+    legal_terms: "Términos de Servicio",
+    legal_and: "y",
+    legal_privacy: "Política de Privacidad",
+    legal_terms_short: "Términos",
+    legal_privacy_short: "Privacidad",
+
     // Requisitos de contraseña (checklist en vivo — registro y cambio de contraseña)
     password_rule_min_length: "Mínimo 8 caracteres",
     password_rule_uppercase: "Una letra mayúscula",
@@ -620,6 +629,15 @@ export const translations = {
     auth_forgot_success: "If an account exists with that email, we sent a link to reset your password. Check your inbox (and spam folder).",
     auth_recovery_link_expired: "This recovery link has expired or is invalid. Please request a new one.",
     auth_password_requirements_title: "Password must have:",
+
+    // Legal (Privacy Policy / Terms of Service — public/privacy.html and
+    // public/terms.html, static pages outside the SPA bundle)
+    legal_agree_prefix: "By creating an account, you agree to our",
+    legal_terms: "Terms of Service",
+    legal_and: "and",
+    legal_privacy: "Privacy Policy",
+    legal_terms_short: "Terms",
+    legal_privacy_short: "Privacy",
 
     // Live password requirements checklist (signup and change password)
     password_rule_min_length: "At least 8 characters",
