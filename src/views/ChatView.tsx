@@ -18,6 +18,7 @@ export function ChatView() {
   const error = useStore((s) => s.error);
   const isSpeaking = useStore((s) => s.isSpeaking);
   const notLiveUser = useStore((s) => s.notLiveUser);
+  const notLiveReason = useStore((s) => s.notLiveReason);
   const reconnecting = useStore((s) => s.reconnecting);
   const { hasActiveLicense } = useAuth();
   const { t } = useI18n();
@@ -61,9 +62,13 @@ export function ChatView() {
               <Tv className="w-5 h-5 text-amber-400" />
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-bold text-amber-400">{t("chat_not_live_title")}</h3>
+              <h3 className="text-sm font-bold text-amber-400">
+                {notLiveReason === "invalid" ? t("chat_not_found_title") : t("chat_not_live_title")}
+              </h3>
               <p className="text-xs text-muted mt-0.5">
-                {t("chat_not_live_desc", { user: notLiveUser })}
+                {notLiveReason === "invalid"
+                  ? t("chat_not_found_desc", { user: notLiveUser })
+                  : t("chat_not_live_desc", { user: notLiveUser })}
               </p>
             </div>
           </div>

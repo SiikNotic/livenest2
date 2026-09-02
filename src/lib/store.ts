@@ -3,7 +3,7 @@ import { supabase, type ChatMessage, type FilterRule, type Settings, type Templa
 import { voiceManager, cleanNameForSpeech } from "./voiceManager";
 import { soundManager, isCustomSoundUrl } from "./soundManager";
 import { applyFilters, applyTemplate } from "./eventProcessor";
-import { TikTokConnection, type TikTokEvent, type ConnectionStatus } from "./tiktokConnection";
+import { TikTokConnection, checkChannelLive, type TikTokEvent, type ConnectionStatus } from "./tiktokConnection";
 import { ytPlayer } from "./youtubePlayer";
 import { useI18n } from "./i18n";
 
@@ -42,6 +42,11 @@ type State = {
   speakQueue: { text: string; voiceId?: string; epoch: number }[];
   processingQueue: boolean;
   notLiveUser: string | null;
+  // Por qué no se pudo conectar: "offline" = el canal existe pero no está
+  // transmitiendo; "invalid" = ese @usuario no existe en TikTok. Se usa para
+  // mostrar el mensaje correcto en vez de decir "no está en vivo" cuando en
+  // realidad el nombre está mal escrito.
+  notLiveReason: "offline" | "invalid" | null;
   reconnecting: boolean;
   sessionStartedAt: number | null;
   // Se incrementa en cada connect()/disconnect(). Cada mensaje encolado para
@@ -91,6 +96,11 @@ type State = {
 };
 
 let connection: TikTokConnection | null = null;
+// Identifica el intento de conexión en curso. El chequeo rápido de "¿está
+// en vivo?" corre en paralelo y puede volver tarde — si para entonces el
+// usuario ya se conectó a otro canal (o se desconectó), este token cambió y
+// la respuesta vieja se descarta en vez de cortar la conexión nueva.
+let connectToken = 0;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingSave: Partial<Settings> | null = null;
 
@@ -128,6 +138,7 @@ export const useStore = create<State>((set, get) => ({
   speakQueue: [],
   processingQueue: false,
   notLiveUser: null,
+  notLiveReason: null,
   reconnecting: false,
   sessionStartedAt: null,
   ttsEpoch: 0,
@@ -147,17 +158,51 @@ export const useStore = create<State>((set, get) => ({
     // anterior, y el nuevo ttsEpoch invalida cualquier mensaje que aún
     // estuviera en la cola vieja.
     voiceManager.stop();
+    const token = ++connectToken;
     set((s) => ({
       status: "connecting",
       username: clean,
       error: null,
       notLiveUser: null,
+      notLiveReason: null,
       sessionStartedAt: Date.now(),
       speakQueue: [],
       processingQueue: false,
       isSpeaking: false,
       ttsEpoch: s.ttsEpoch + 1,
     }));
+
+    // Chequeo rápido de "¿está en vivo?" EN PARALELO con la conexión real.
+    // A propósito SIN await antes de abrir el WebSocket: esperar acá le
+    // sumaría el viaje de red entero al tiempo de conectar de un canal que
+    // sí está transmitiendo — que es el caso que tiene que ser lo más
+    // rápido posible. Corriendo en paralelo no cuesta nada, y cuando el
+    // canal está offline avisa en milisegundos en vez de esperar los
+    // segundos que tarda Euler Stream en cerrar el WebSocket con 4404.
+    checkChannelLive(clean).then((result) => {
+      // Llegó tarde: el usuario ya se conectó a otro canal o se desconectó.
+      if (token !== connectToken) return;
+      // Sin veredicto (error de red, rate limit, timeout) — que decida la
+      // conexión real, no cortamos nada por un chequeo que falló.
+      if (!result) return;
+      // La conexión real ya ganó: si ya llegaron datos de Euler Stream, la
+      // sala existe y está transmitiendo de verdad (pudo haber arrancado el
+      // directo justo entre medio), así que este chequeo quedó viejo. Se
+      // mira si llegaron datos y NO status === "connected": ese status solo
+      // dice que nuestro propio proxy aceptó el WebSocket, cosa que pasa en
+      // milisegundos, mucho antes de que Euler resuelva el canal.
+      if (connection?.receivedUpstreamData) return;
+      if (result.isLive) return;
+
+      connection?.disconnect();
+      connection = null;
+      set({
+        status: "disconnected",
+        reconnecting: false,
+        notLiveUser: clean,
+        notLiveReason: result.invalid ? "invalid" : "offline",
+      });
+    });
 
     connection = new TikTokConnection({
       onStatus: (status) => {
@@ -173,8 +218,10 @@ export const useStore = create<State>((set, get) => ({
       },
       onReconnecting: () => set({ reconnecting: true }),
       onNotLive: (user) => {
-        set({ notLiveUser: user, status: "disconnected", reconnecting: false });
-        setTimeout(() => set((s) => (s.notLiveUser === user ? { notLiveUser: null } : {})), 6000);
+        // El aviso se queda hasta el próximo intento de conexión (connect()
+        // lo limpia) — antes se borraba solo a los 6 segundos y era fácil
+        // no llegar a verlo si estabas mirando otra cosa.
+        set({ notLiveUser: user, notLiveReason: "offline", status: "disconnected", reconnecting: false });
       },
       onEvent: (event: TikTokEvent) => {
         const store = get();
@@ -211,6 +258,10 @@ export const useStore = create<State>((set, get) => ({
   },
 
   disconnect: () => {
+    // Invalida cualquier chequeo de "¿está en vivo?" que siga en vuelo, para
+    // que no dispare un aviso de "no está en vivo" después de que el usuario
+    // ya cortó por su cuenta.
+    connectToken++;
     if (connection) {
       connection.disconnect();
       connection = null;
@@ -228,6 +279,8 @@ export const useStore = create<State>((set, get) => ({
       viewerCount: 0,
       reconnecting: false,
       error: null,
+      notLiveUser: null,
+      notLiveReason: null,
       sessionStartedAt: null,
       // Los mensajes de chat no se guardan en la base (a diferencia de
       // eventos/canciones) — viven solo en este estado local, así que sin
@@ -248,6 +301,7 @@ export const useStore = create<State>((set, get) => ({
    *  la próxima recarga) configuraciones que ya no correspondían a nadie
    *  logueado, o a la cuenta equivocada. */
   resetSession: () => {
+    connectToken++;
     if (connection) {
       connection.disconnect();
       connection = null;
@@ -282,6 +336,7 @@ export const useStore = create<State>((set, get) => ({
       speakQueue: [],
       processingQueue: false,
       notLiveUser: null,
+      notLiveReason: null,
       reconnecting: false,
       sessionStartedAt: null,
       ttsEpoch: s.ttsEpoch + 1,

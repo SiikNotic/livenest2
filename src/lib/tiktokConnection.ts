@@ -23,6 +23,49 @@ type Handlers = {
 // directamente — así la API key nunca llega al navegador.
 const TIKTOK_PROXY_WS_ENDPOINT = `${(import.meta.env.VITE_SUPABASE_URL as string).replace(/^http/, "ws")}/functions/v1/tiktok-connect`;
 
+// Chequeo REST liviano de "¿este canal está en vivo?" — responde en
+// milisegundos, sin abrir ningún WebSocket. Se usa EN PARALELO con la
+// conexión real (ver connect() en store.ts): sirve para cortar al instante
+// cuando el canal está offline, en vez de esperar a que Euler Stream cierre
+// el WebSocket con 4404 varios segundos después.
+const TIKTOK_LIVE_CHECK_ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/tiktok-live-check`;
+
+export type LiveCheckResult = {
+  /** El canal está transmitiendo ahora mismo. */
+  isLive: boolean;
+  /** Ese @usuario no existe en TikTok (distinto de "existe pero está offline"). */
+  invalid: boolean;
+};
+
+/** Devuelve null si no se pudo determinar (error de red, rate limit, timeout).
+ *  En ese caso NO hay veredicto: se deja que la conexión real decida, para no
+ *  cortar una conexión buena por un chequeo que simplemente falló. */
+export async function checkChannelLive(username: string): Promise<LiveCheckResult | null> {
+  const clean = username.trim().replace(/^@/, "");
+  if (!clean) return null;
+
+  // Tope de tiempo propio: si el chequeo tarda más que esto ya no aporta
+  // nada (el WebSocket real va a resolver antes), así que se abandona.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+
+  try {
+    const url = `${TIKTOK_LIVE_CHECK_ENDPOINT}?username=${encodeURIComponent(clean)}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY as string}` },
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (typeof data !== "object" || data === null) return null;
+    return { isLive: !!(data as Record<string, unknown>).isLive, invalid: !!(data as Record<string, unknown>).invalid };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export class TikTokConnection {
   private ws: WebSocket | null = null;
   private handlers: Handlers;
@@ -33,6 +76,7 @@ export class TikTokConnection {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private lastPong = 0;
   private closedByClient = false;
+  private receivedUpstream = false;
   private visibilityHandler: (() => void) | null = null;
   private seenKeys = new Map<string, number>();
   private static readonly MAX_SEEN = 500;
@@ -60,6 +104,16 @@ export class TikTokConnection {
     }
   }
 
+  /** true en cuanto llega el primer mensaje real de Euler Stream — es decir,
+   *  cuando la sala del canal quedó resuelta de verdad. OJO: no confundir con
+   *  status === "connected", que solo significa que NUESTRO proxy aceptó el
+   *  WebSocket (ocurre en milisegundos, antes de que Euler siquiera busque el
+   *  canal). Para saber si el canal está realmente en vivo, esto es lo que
+   *  vale. */
+  get receivedUpstreamData(): boolean {
+    return this.receivedUpstream;
+  }
+
   get status(): ConnectionStatus {
     if (!this.ws) return "disconnected";
     if (this.ws.readyState === WebSocket.CONNECTING) return "connecting";
@@ -79,6 +133,7 @@ export class TikTokConnection {
     this.currentUsername = clean;
     this.retryCount = 0;
     this.closedByClient = false;
+    this.receivedUpstream = false;
 
     this.openSocket(this.buildProxyUrl(clean), clean);
   }
@@ -135,6 +190,10 @@ export class TikTokConnection {
 
     this.ws.onmessage = (ev) => {
       this.lastPong = Date.now();
+      // Nuestro proxy solo reenvía lo que manda Euler Stream (no manda nada
+      // propio), así que recibir cualquier cosa ya prueba que la sala existe
+      // y está transmitiendo.
+      this.receivedUpstream = true;
       this.handleMessage(ev.data);
     };
 
