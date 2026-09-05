@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useI18n, type Lang, type TranslationKey } from "../lib/i18n";
 import { MEMBERSHIP_PRICE_LABEL } from "../lib/stripeConfig";
 import {
@@ -18,6 +18,40 @@ import {
 // blur decorativo ni tarjetas flotando encima de otras) y apuesta por un
 // mock que se parece a lo que el producto realmente hace: un overlay de
 // transmisión en vivo, no una captura de navegador.
+
+// Revela `children` con un fade-up cuando entran en el viewport (o de
+// inmediato, si el navegador no soporta IntersectionObserver — nunca se
+// queda escondido). El hero usa esto mismo para su animación de entrada:
+// como ya está a la vista al cargar, el observer dispara enseguida.
+function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; delay?: number; className?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={`reveal ${visible ? "is-visible" : ""} ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
+
 export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
   const { t, lang, setLang } = useI18n();
 
@@ -43,8 +77,21 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
   function Nav({ onLaunch, lang, setLang, scrollTo }: {
     onLaunch: () => void; lang: Lang; setLang: (l: Lang) => void; scrollTo: (id: string) => void;
   }) {
+    // Sombra que aparece recién al scrollear — la barra se siente "flotando"
+    // sobre el contenido en vez de tener un borde fijo desde el arranque.
+    const [scrolled, setScrolled] = useState(false);
+    useEffect(() => {
+      const onScroll = () => setScrolled(window.scrollY > 8);
+      onScroll();
+      window.addEventListener("scroll", onScroll, { passive: true });
+      return () => window.removeEventListener("scroll", onScroll);
+    }, []);
     return (
-      <header className="sticky top-0 z-30 border-b border-border bg-bg/80 backdrop-blur-md">
+      <header
+        className={`sticky top-0 z-30 bg-bg/80 backdrop-blur-md transition-shadow duration-300 ${
+          scrolled ? "border-b border-border shadow-lg shadow-black/20" : "border-b border-transparent"
+        }`}
+      >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 shrink-0">
             <img src="/logo.png" alt="" className="w-9 h-9 rounded-xl" />
@@ -84,29 +131,41 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
       <section className="relative border-b border-border">
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-20 pb-24 grid lg:grid-cols-2 gap-16 items-center">
           <div>
-            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary mb-6">
-              <span className="w-4 h-px bg-primary" /> LiveNest
-            </span>
-            <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
-              <span className="block">{t("landing_hero_title_1")}</span>
-              {t("landing_hero_title_2") && <span className="block">{t("landing_hero_title_2")}</span>}
-              <span className="block text-gradient">{t("landing_hero_title_3")}</span>
-            </h1>
-            <p className="mt-6 text-lg text-text-soft max-w-md leading-relaxed">{t("landing_hero_subtitle")}</p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <button onClick={onLaunch} className="btn-primary text-sm px-6 py-3.5 glow-primary">{t("landing_hero_cta_primary")}</button>
-              <button onClick={() => scrollTo("features")} className="btn-ghost text-sm px-6 py-3.5">{t("landing_hero_cta_secondary")}</button>
-            </div>
-            <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted">
-              {[t("landing_hero_trust_1"), t("landing_hero_trust_2"), t("landing_hero_trust_3")].map((txt, i) => (
-                <span key={txt} className="flex items-center gap-3">
-                  {i > 0 && <span className="w-1 h-1 rounded-full bg-border-soft" />}
-                  {txt}
-                </span>
-              ))}
-            </div>
+            <Reveal>
+              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary mb-6">
+                <span className="w-4 h-px bg-primary" /> LiveNest
+              </span>
+            </Reveal>
+            <Reveal delay={80}>
+              <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
+                <span className="block">{t("landing_hero_title_1")}</span>
+                {t("landing_hero_title_2") && <span className="block">{t("landing_hero_title_2")}</span>}
+                <span className="block text-gradient">{t("landing_hero_title_3")}</span>
+              </h1>
+            </Reveal>
+            <Reveal delay={160}>
+              <p className="mt-6 text-lg text-text-soft max-w-md leading-relaxed">{t("landing_hero_subtitle")}</p>
+            </Reveal>
+            <Reveal delay={240}>
+              <div className="mt-9 flex flex-wrap gap-3">
+                <button onClick={onLaunch} className="btn-primary text-sm px-6 py-3.5 glow-primary hover:-translate-y-0.5">{t("landing_hero_cta_primary")}</button>
+                <button onClick={() => scrollTo("features")} className="btn-ghost text-sm px-6 py-3.5 hover:-translate-y-0.5">{t("landing_hero_cta_secondary")}</button>
+              </div>
+            </Reveal>
+            <Reveal delay={320}>
+              <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted">
+                {[t("landing_hero_trust_1"), t("landing_hero_trust_2"), t("landing_hero_trust_3")].map((txt, i) => (
+                  <span key={txt} className="flex items-center gap-3">
+                    {i > 0 && <span className="w-1 h-1 rounded-full bg-border-soft" />}
+                    {txt}
+                  </span>
+                ))}
+              </div>
+            </Reveal>
           </div>
-          <HeroMock />
+          <Reveal delay={160}>
+            <HeroMock />
+          </Reveal>
         </div>
       </section>
     );
@@ -123,11 +182,16 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
     ];
     const alert = { icon: Gift, labelKey: "landing_mock_alert_gift" as const };
     // Barras de una "onda de voz" — sugieren que algo se está leyendo en voz
-    // alta ahora mismo, sin necesitar una captura de audio real.
-    const waveBars = [7, 13, 9, 18, 11, 21, 8, 15];
+    // alta ahora mismo. Cada una pulsa con su propio retraso/duración para
+    // que se vea como un ecualizador real, no una animación sincronizada.
+    const waveBars = [
+      { delay: 0, duration: 1.0 }, { delay: 0.12, duration: 0.9 }, { delay: 0.24, duration: 1.15 },
+      { delay: 0.06, duration: 0.8 }, { delay: 0.3, duration: 1.05 }, { delay: 0.18, duration: 0.95 },
+      { delay: 0.36, duration: 1.1 }, { delay: 0.1, duration: 0.85 },
+    ];
     return (
       <div className="flex justify-center lg:justify-end">
-        <div className="relative w-[300px]">
+        <div className="relative w-[300px] animate-float">
           {/* Resplandor sutil detrás del teléfono — la única concesión al
               "glow", contenida y sin competir con el contenido. */}
           <div className="absolute -inset-6 bg-gradient-to-br from-primary/15 to-accent/15 rounded-[3rem] blur-2xl -z-10" />
@@ -168,8 +232,12 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
                   <p className="text-[9px] text-muted">{t("landing_mock_alerts_title")}</p>
                 </div>
                 <div className="flex items-end gap-[2px] h-4 flex-shrink-0">
-                  {waveBars.map((h, i) => (
-                    <span key={i} className="w-[2px] rounded-full bg-primary/70" style={{ height: h }} />
+                  {waveBars.map((bar, i) => (
+                    <span
+                      key={i}
+                      className="w-[2px] h-4 rounded-full bg-primary/70 origin-bottom animate-wave-bar"
+                      style={{ animationDelay: `${bar.delay}s`, animationDuration: `${bar.duration}s` }}
+                    />
                   ))}
                 </div>
               </div>
@@ -203,11 +271,11 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
     return (
       <section className="border-b border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-7 grid grid-cols-2 sm:grid-cols-4 divide-x divide-border">
-          {stats.map(([n, label]) => (
-            <div key={label} className="px-4 first:pl-0 text-center sm:text-left">
+          {stats.map(([n, label], i) => (
+            <Reveal key={label} delay={i * 80} className="px-4 first:pl-0 text-center sm:text-left">
               <p className="text-2xl sm:text-3xl font-extrabold">{n}</p>
               <p className="text-xs text-muted mt-0.5">{label}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -232,7 +300,7 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border rounded-2xl overflow-hidden border border-border">
           {items.map((f, i) => (
-            <div key={f.titleKey} className="bg-bg-card p-6 hover:bg-bg-soft transition-colors">
+            <Reveal key={f.titleKey} delay={(i % 3) * 90} className="bg-bg-card p-6 hover:bg-bg-soft transition-colors">
               <div className="flex items-center gap-3 mb-4">
                 <div className={`w-10 h-10 rounded-xl ${f.bg} flex items-center justify-center flex-shrink-0`}>
                   <f.icon className={`w-4.5 h-4.5 ${f.color}`} />
@@ -241,7 +309,7 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
               </div>
               <h3 className="text-sm font-bold mb-1.5">{t(f.titleKey)}</h3>
               <p className="text-xs text-text-soft leading-relaxed">{t(f.descKey)}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -260,11 +328,11 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center mb-16">{t("landing_how_title")}</h2>
           <div className="grid sm:grid-cols-3 gap-8">
             {steps.map((s, i) => (
-              <div key={s.titleKey} className="text-center sm:text-left">
+              <Reveal key={s.titleKey} delay={i * 120} className="text-center sm:text-left">
                 <p className="text-4xl font-extrabold text-primary/30 mb-3">0{i + 1}</p>
                 <h3 className="text-sm font-bold mb-1.5">{t(s.titleKey)}</h3>
                 <p className="text-xs text-text-soft leading-relaxed">{t(s.descKey)}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -282,7 +350,7 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
           <p className="mt-4 text-base text-text-soft">{t("landing_pricing_subtitle")}</p>
         </div>
         <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-          <div className="card">
+          <Reveal className="card">
             <h3 className="text-sm font-bold text-text-soft">{t("landing_pricing_free_title")}</h3>
             <p className="text-4xl font-extrabold mt-2">{t("landing_pricing_free_price")}</p>
             <p className="text-xs text-muted mb-5">{t("landing_pricing_free_desc")}</p>
@@ -294,8 +362,8 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
               ))}
             </ul>
             <button onClick={onLaunch} className="btn-ghost w-full text-sm">{t("landing_hero_cta_primary")}</button>
-          </div>
-          <div className="card !border-primary/40 relative glow-primary">
+          </Reveal>
+          <Reveal delay={120} className="card !border-primary/40 relative glow-primary">
             <span className="badge-primary absolute -top-3 left-5">{t("landing_pricing_premium_badge")}</span>
             <h3 className="text-sm font-bold text-text-soft">{t("landing_pricing_premium_title")}</h3>
             <p className="text-4xl font-extrabold mt-2">
@@ -311,7 +379,7 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
               ))}
             </ul>
             <button onClick={onLaunch} className="btn-primary w-full text-sm">{t("landing_hero_cta_primary")}</button>
-          </div>
+          </Reveal>
         </div>
       </section>
     );
@@ -355,20 +423,22 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
       <section id="faq" className="max-w-3xl mx-auto px-4 sm:px-6 py-28 scroll-mt-16">
         <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center mb-12">{t("landing_faq_title")}</h2>
         <div className="space-y-3">
-          {items.map(([qKey, aKey]) => {
+          {items.map(([qKey, aKey], i) => {
             const isOpen = open === qKey;
             return (
-              <div key={qKey} className="card cursor-pointer" onClick={() => setOpen(isOpen ? null : qKey)}>
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-bold">{t(qKey)}</h3>
-                  <ChevronDown className={`w-4 h-4 text-muted flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+              <Reveal key={qKey} delay={i * 60}>
+                <div className="card card-hover cursor-pointer" onClick={() => setOpen(isOpen ? null : qKey)}>
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-bold">{t(qKey)}</h3>
+                    <ChevronDown className={`w-4 h-4 text-muted flex-shrink-0 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+                  </div>
+                  {isOpen && (
+                    <p className="text-xs text-text-soft leading-relaxed mt-2.5 animate-slide-down">
+                      {aKey === "landing_faq_3_a" ? t(aKey, { price: MEMBERSHIP_PRICE_LABEL }) : t(aKey)}
+                    </p>
+                  )}
                 </div>
-                {isOpen && (
-                  <p className="text-xs text-text-soft leading-relaxed mt-2.5 animate-slide-down">
-                    {aKey === "landing_faq_3_a" ? t(aKey, { price: MEMBERSHIP_PRICE_LABEL }) : t(aKey)}
-                  </p>
-                )}
-              </div>
+              </Reveal>
             );
           })}
         </div>
@@ -379,16 +449,16 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
   function FinalCta({ onLaunch }: { onLaunch: () => void }) {
     return (
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
-        <div className="relative rounded-2xl border border-border bg-bg-soft/60 px-6 py-14 sm:px-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-6 overflow-hidden">
+        <Reveal className="relative rounded-2xl border border-border bg-bg-soft/60 px-6 py-14 sm:px-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-6 overflow-hidden">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-primary to-accent" />
           <div className="relative text-center sm:text-left">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">{t("landing_final_title")}</h2>
             <p className="text-sm text-text-soft mt-2 max-w-md">{t("landing_final_subtitle")}</p>
           </div>
-          <button onClick={onLaunch} className="btn-primary text-sm px-7 py-3.5 whitespace-nowrap">
+          <button onClick={onLaunch} className="btn-primary text-sm px-7 py-3.5 whitespace-nowrap hover:-translate-y-0.5">
             {t("landing_final_cta")}
           </button>
-        </div>
+        </Reveal>
       </section>
     );
   }
