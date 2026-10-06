@@ -493,6 +493,10 @@ export function LandingPage({ onLaunch }: { onLaunch: () => void }) {
             <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ln-smoke)" }}>{t("landing_footer_legal")}</p>
             <div className="flex flex-col gap-1.5 text-xs" style={{ color: "var(--ln-ash)" }}>
               <a href="/terms.html" className="hover:text-white transition-colors">{t("landing_footer_terms")}</a>
+              <a href="/es/lector-voz-tiktok-live/" className="hover:text-white transition-colors">Lector de voz TikTok Live</a>
+              <a href="/es/como-leer-comentarios-tiktok-live/" className="hover:text-white transition-colors">Guía TikTok Live</a>
+              <a href="/es/tiktok-live-text-to-speech/" className="hover:text-white transition-colors">TikTok Live TTS</a>
+              <a href="/es/alertas-tiktok-live/" className="hover:text-white transition-colors">Alertas TikTok Live</a>
               <a href="/privacy.html" className="hover:text-white transition-colors">{t("landing_footer_privacy")}</a>
             </div>
           </div>
