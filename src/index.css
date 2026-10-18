@@ -747,3 +747,83 @@ input[type="range"]::-moz-range-thumb {
 }
 .ln.ln-vital .ln-btn-primary:hover { background: #000; }
 .ln.ln-vital .ln-btn-ghost:hover { color: var(--ln-white); border-color: var(--ln-smoke); }
+
+
+/* ===== LiveNest 2 — Dark Premium web refresh (preview branch only) ===== */
+/* Scoped to the signed-in web shell so the native Android experience and
+   the public landing/auth flows keep their current behavior. */
+.ln-premium-web {
+  background: #0b0a12;
+  background-image: radial-gradient(ellipse at 78% -18%, rgba(124, 58, 237, .16), transparent 42%),
+                    radial-gradient(ellipse at 15% 110%, rgba(8, 145, 178, .08), transparent 38%);
+  color: #f4f2fa;
+}
+.ln-premium-web [class~="bg-bg-card"] { background-color: rgba(21, 19, 31, .92); }
+.ln-premium-web [class~="bg-bg-soft"] { background-color: rgba(27, 24, 40, .84); }
+.ln-premium-web [class~="border-border"] { border-color: rgba(177, 158, 220, .14); }
+.ln-premium-web [class~="text-primary"] { color: #c4a7ff; }
+.ln-premium-web [class~="bg-primary/15"] { background-color: rgba(167, 139, 250, .14); }
+.ln-premium-web aside.fixed {
+  width: 264px;
+  background: rgba(15, 13, 23, .96);
+  border-right-color: rgba(177, 158, 220, .13);
+  box-shadow: 18px 0 48px rgba(0, 0, 0, .12);
+}
+.ln-premium-web aside.fixed > div:first-child {
+  min-height: 82px;
+  padding-left: 24px;
+  border-bottom-color: rgba(177, 158, 220, .12);
+}
+.ln-premium-web aside.fixed nav { padding: 22px 14px; }
+.ln-premium-web aside.fixed nav button {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  letter-spacing: .005em;
+}
+.ln-premium-web aside.fixed nav button[class*="bg-primary/15"] {
+  color: #d5c2ff;
+  background: linear-gradient(100deg, rgba(139, 92, 246, .19), rgba(139, 92, 246, .07));
+  border-color: rgba(167, 139, 250, .17);
+  box-shadow: inset 3px 0 0 #a78bfa;
+}
+.ln-premium-web aside.fixed nav button:hover { border-color: rgba(177, 158, 220, .12); }
+.ln-premium-web header.sticky {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  background: rgba(11, 10, 18, .82);
+  border-bottom: 1px solid rgba(177, 158, 220, .12);
+  backdrop-filter: blur(22px);
+}
+.ln-premium-web main.hidden.lg\\:block > div { padding: 22px 24px 24px; gap: 18px; }
+.ln-premium-web main.hidden.lg\\:block > div > div {
+  background: linear-gradient(160deg, rgba(24, 21, 36, .98), rgba(17, 16, 27, .98));
+  border-color: rgba(177, 158, 220, .15);
+  border-radius: 18px;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(255,255,255,.025);
+}
+.ln-premium-web main.hidden.lg\\:block > div > div > div:first-child {
+  background: rgba(30, 25, 45, .74);
+  border-bottom-color: rgba(177, 158, 220, .13);
+  padding: 13px 16px;
+}
+.ln-premium-web main.hidden.lg\\:block > div > div > div:first-child span {
+  color: #c9b9ed;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .11em;
+}
+.ln-premium-web aside.fixed > div:last-child { border-top-color: rgba(177, 158, 220, .13); padding: 16px; }
+.ln-premium-web aside.fixed > div:last-child button:hover { background-color: rgba(167, 139, 250, .08); }
+@media (min-width: 1280px) {
+  .ln-premium-web aside.fixed { width: 272px; }
+  .ln-premium-web > div.flex-1 { padding-left: 272px; }
+}
+@media (max-width: 1023px) {
+  .ln-premium-web { background-image: none; }
+}
+
+@media (min-width: 1024px) {
+  .ln-premium-web > div.flex-1 { padding-left: 264px; }
+}
