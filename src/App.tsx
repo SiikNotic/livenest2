@@ -280,7 +280,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex relative">
+    <div className={`min-h-screen flex relative ${Capacitor.isNativePlatform() ? "" : "ln-premium-web"}`}>
       <div className="fixed overflow-hidden pointer-events-none" style={{ left: -9999, top: -9999, width: 200, height: 200 }} aria-hidden>
         <div ref={playerContainerRef} style={{ width: 200, height: 200 }} />
       </div>
